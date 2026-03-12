@@ -1,0 +1,92 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+    :root {
+        --brand: #1B3A6B;
+        --accent: #F5A623;
+    }
+
+    * {
+        box-sizing: border-box;
+    }
+
+    html {
+        scroll-behavior: smooth;
+    }
+
+    body {
+        font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        background-color: #F8FAFC;
+        color: #1E293B;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+}
+
+@layer components {
+    .btn-primary {
+        @apply inline-flex items-center justify-center gap-2 px-6 py-3 bg-brand-500 text-white font-semibold rounded-lg shadow-sm hover:bg-brand-600 active:bg-brand-700 transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed;
+    }
+
+    .btn-secondary {
+        @apply inline-flex items-center justify-center gap-2 px-6 py-3 bg-white text-brand-500 font-semibold rounded-lg border border-brand-500 hover:bg-brand-50 active:bg-brand-100 transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed;
+    }
+
+    .btn-accent {
+        @apply inline-flex items-center justify-center gap-2 px-6 py-3 bg-accent-500 text-white font-semibold rounded-lg shadow-sm hover:bg-accent-600 active:bg-accent-700 transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed;
+    }
+
+    .btn-ghost {
+        @apply inline-flex items-center justify-center gap-2 px-4 py-2 text-slate-600 font-medium rounded-lg hover:bg-slate-100 active:bg-slate-200 transition-colors duration-150;
+    }
+
+    .card {
+        @apply bg-white rounded-xl shadow-card border border-slate-100;
+    }
+
+    .input-field {
+        @apply w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent transition-shadow duration-150 text-sm;
+    }
+
+    .label {
+        @apply block text-sm font-medium text-slate-700 mb-1.5;
+    }
+
+    .section-title {
+        @apply text-2xl font-bold text-brand-500;
+    }
+
+    .hint-text {
+        @apply text-xs text-slate-500 mt-1;
+    }
+}
+
+/* Custom number input — remove spinners */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+input[type="number"] {
+    -moz-appearance: textfield;
+}
+
+/* Smooth step transitions */
+.wizard-step {
+    animation: slideUp 0.25s ease-out;
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

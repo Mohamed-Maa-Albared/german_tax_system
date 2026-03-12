@@ -1,1 +1,44 @@
 tax_system.md
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+venv/
+env/
+.venv/
+
+# Environment files (keep example, ignore actual)
+.env
+!.env.example
+
+# Database
+*.db
+*.sqlite3
+
+# Node
+node_modules/
+npm-debug.log*
+
+# Build outputs
+frontend/dist/
+frontend/build/
+
+# Vite
+*.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test artifacts
+.coverage
+htmlcov/
+.pytest_cache/
+frontend/coverage/
