@@ -16,7 +16,9 @@ export interface PersonalData {
 export interface EmploymentData {
     grossSalary: number
     taxesWithheld: number
-    bonus: number
+    bonus: number             // resolved euro amount always used for calculation
+    bonusType?: 'fixed' | 'percent'  // UI preference — fixed € or % of gross salary
+    bonusPercent?: number    // percentage value when bonusType === 'percent'
 }
 
 export interface OtherIncomeData {
@@ -115,6 +117,7 @@ export interface TaxBreakdown {
     sonderausgaben_pauschale?: number
     sonderausgaben_used: number
     aussergewoehnliche_belastungen?: number  // renamed from aussergewoehnliche_belast
+    disability_pauschbetrag_used?: number     // §33b EStG flat-rate disability allowance
 
     // Core tax result
     zve: number
@@ -125,6 +128,7 @@ export interface TaxBreakdown {
     kindergeld_annual: number
     capital_tax_flat: number
     capital_tax_due: number
+    sparer_pauschbetrag_used?: number
     total_tax: number
 
     // Withheld

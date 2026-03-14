@@ -1,3 +1,35 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@media print {
+
+    /* Hide navigation, footer, and interactive controls when printing */
+    header,
+    footer,
+    .print\:hidden {
+        display: none !important;
+    }
+
+    /* Ensure no clipped content */
+    body {
+        font-size: 12px;
+    }
+
+    main {
+        padding: 0 !important;
+        max-width: 100% !important;
+    }
+
+    /* Ensure borders/backgrounds print */
+    * {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    /* Page breaks */
+    section,
+    .border {
+        page-break-inside: avoid;
+    }
+}

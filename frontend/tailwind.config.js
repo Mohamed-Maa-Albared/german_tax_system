@@ -13,7 +13,20 @@ export default {
                     900: '#1e3a8a',
                 },
             },
+            typography: {
+                sm: {
+                    css: {
+                        p: { marginTop: '0.4em', marginBottom: '0.4em' },
+                        li: { marginTop: '0.15em', marginBottom: '0.15em' },
+                        'ul, ol': { marginTop: '0.4em', marginBottom: '0.4em' },
+                        h1: { fontSize: '1em', fontWeight: '700' },
+                        h2: { fontSize: '0.95em', fontWeight: '700' },
+                        h3: { fontSize: '0.9em', fontWeight: '600' },
+                        code: { fontSize: '0.85em' },
+                    },
+                },
+            },
         },
     },
-    plugins: [],
+    plugins: [require('@tailwindcss/typography')],
 }

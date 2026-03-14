@@ -20,6 +20,7 @@ interface TaxStore {
     specialExpenses: SpecialExpensesData
     taxParams: TaxYearParameters
     result: TaxBreakdown | null
+    resultsHistory: TaxBreakdown[]  // ordered oldest → newest
 
     setCurrentStep: (step: number) => void
     updatePersonal: (data: Partial<PersonalData>) => void
@@ -48,6 +49,8 @@ const defaultEmployment: EmploymentData = {
     grossSalary: 0,
     taxesWithheld: 0,
     bonus: 0,
+    bonusType: 'fixed',
+    bonusPercent: 0,
 }
 
 const defaultOtherIncome: OtherIncomeData = {
@@ -92,6 +95,7 @@ export const useTaxStore = create<TaxStore>()(persist(
         specialExpenses: { ...defaultSpecialExpenses },
         taxParams: DEFAULT_PARAMS_2026,
         result: null,
+        resultsHistory: [],
 
         setCurrentStep: (step) => set({ currentStep: step }),
 
@@ -113,9 +117,14 @@ export const useTaxStore = create<TaxStore>()(persist(
         setTaxParams: (params) => set({ taxParams: params }),
 
         runCalculation: () => {
-            const { personal, employment, otherIncome, deductions, specialExpenses, taxParams } = get()
+            const { personal, employment, otherIncome, deductions, specialExpenses, taxParams, resultsHistory } = get()
             const result = calculateTax(personal, employment, otherIncome, deductions, specialExpenses, taxParams)
-            set({ result })
+            // Keep at most 5 historical results for multi-year comparison
+            const updatedHistory = [
+                ...resultsHistory.filter((r) => r.tax_year !== result.tax_year),
+                result,
+            ].slice(-5)
+            set({ result, resultsHistory: updatedHistory })
         },
 
         reset: () =>
@@ -128,6 +137,7 @@ export const useTaxStore = create<TaxStore>()(persist(
                 specialExpenses: { ...defaultSpecialExpenses },
                 taxParams: DEFAULT_PARAMS_2026,
                 result: null,
+                resultsHistory: [],
             }),
     }),
     { name: 'smarttax-wizard' },

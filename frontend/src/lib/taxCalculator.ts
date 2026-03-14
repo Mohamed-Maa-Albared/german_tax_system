@@ -169,6 +169,34 @@ function calcKinderfreibetragVsKindergeld(
 }
 
 // ---------------------------------------------------------------------------
+// §33b EStG — Disability flat-rate allowance (Behinderten-Pauschbetrag)
+// ---------------------------------------------------------------------------
+
+// Amounts in force since 1 Jan 2021 — keys are the lower bound of each GdB band
+const DISABILITY_PAUSCHBETRAG: Record<number, number> = {
+    20: 384,
+    25: 620, 30: 620,
+    35: 860, 40: 860,
+    45: 1_140, 50: 1_140,
+    55: 1_440, 60: 1_440,
+    65: 1_780, 70: 1_780,
+    75: 2_120, 80: 2_120,
+    85: 2_460, 90: 2_460,
+    95: 2_840, 100: 2_840,
+}
+
+function getDisabilityPauschbetrag(grade: number): number {
+    if (grade < 20) return 0
+    const keys = Object.keys(DISABILITY_PAUSCHBETRAG).map(Number).sort((a, b) => a - b)
+    let amount = 0
+    for (const key of keys) {
+        if (key <= grade) amount = DISABILITY_PAUSCHBETRAG[key]
+        else break
+    }
+    return amount
+}
+
+// ---------------------------------------------------------------------------
 // §33 EStG — Außergewöhnliche Belastungen
 // ---------------------------------------------------------------------------
 
@@ -235,8 +263,17 @@ export function calculateTax(
         personal.numChildren,
     )
 
+    // 5a. §33b EStG — Disability Pauschbetrag
+    const disabilityPb =
+        personal.isDisabled && (personal.disabilityGrade ?? 0) >= 20
+            ? getDisabilityPauschbetrag(personal.disabilityGrade ?? 0)
+            : 0
+
     // 6. ZVE before Kinderfreibetrag
-    const zveBeforeKind = Math.max(0, Math.floor(gesamtbetrag - sonderausgabenUsed - abl))
+    const zveBeforeKind = Math.max(
+        0,
+        Math.floor(gesamtbetrag - sonderausgabenUsed - abl - disabilityPb),
+    )
 
     // 7. Tariff function
     const tariffFn = isJoint
@@ -301,6 +338,7 @@ export function calculateTax(
         sonderausgaben_pauschale: saPauschale,
         sonderausgaben_used: sonderausgabenUsed,
         aussergewoehnliche_belastungen: abl,
+        disability_pauschbetrag_used: disabilityPb,
         // Core result
         zve: zveAfterKind,
         tarifliche_est: tariflicheEst,
