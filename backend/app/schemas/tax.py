@@ -83,6 +83,7 @@ class TaxBreakdownResponse(BaseModel):
     sonderausgaben_pauschale: float
     sonderausgaben_used: float
     aussergewoehnliche_belastungen: float
+    disability_pauschbetrag_used: float
     kinderfreibetrag_used: float
     kindergeld_annual: float
     zve: float

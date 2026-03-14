@@ -1,17 +1,18 @@
 """Comprehensive backend test suite — 63 tests."""
+
 from __future__ import annotations
 
 import math
+
 import pytest
+from app.database import Base, get_db
+from app.main import app
+from app.models.tax_parameter import AdminCredential, TaxYearParameter
+from app.services.admin_service import pwd_context
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
-
-from app.database import Base, get_db
-from app.main import app
-from app.models.tax_parameter import TaxYearParameter, AdminCredential
-from app.services.admin_service import pwd_context
 
 # ---------------------------------------------------------------------------
 # In-memory DB setup
@@ -242,58 +243,72 @@ class TestSolidaritaetszuschlag:
     def test_joint_soli_freigrenze_double(self):
         # Married couple with lower income should have higher soli threshold
         single = post_calc({"employment": {"gross_salary": 50000}})
-        married = post_calc({
-            "personal": {"is_married": True},
-            "employment": {"gross_salary": 50000},
-        })
+        married = post_calc(
+            {
+                "personal": {"is_married": True},
+                "employment": {"gross_salary": 50000},
+            }
+        )
         # Married may have less soli due to splitting
         assert married["solidaritaetszuschlag"] <= single["solidaritaetszuschlag"]
 
 
 class TestKirchensteuer:
     def test_no_church_tax_when_not_member(self):
-        data = post_calc({
-            "personal": {"is_church_member": False},
-            "employment": {"gross_salary": 50000},
-        })
+        data = post_calc(
+            {
+                "personal": {"is_church_member": False},
+                "employment": {"gross_salary": 50000},
+            }
+        )
         assert data["kirchensteuer"] == 0
 
     def test_church_tax_when_member_high(self):
-        data = post_calc({
-            "personal": {"is_church_member": True, "church_tax_rate_type": "high"},
-            "employment": {"gross_salary": 50000},
-        })
+        data = post_calc(
+            {
+                "personal": {"is_church_member": True, "church_tax_rate_type": "high"},
+                "employment": {"gross_salary": 50000},
+            }
+        )
         assert data["kirchensteuer"] > 0
         # Should be ~9% of income tax
         assert data["kirchensteuer"] == math.floor(data["tarifliche_est"] * 0.09)
 
     def test_church_tax_low_rate(self):
-        data_high = post_calc({
-            "personal": {"is_church_member": True, "church_tax_rate_type": "high"},
-            "employment": {"gross_salary": 50000},
-        })
-        data_low = post_calc({
-            "personal": {"is_church_member": True, "church_tax_rate_type": "low"},
-            "employment": {"gross_salary": 50000},
-        })
+        data_high = post_calc(
+            {
+                "personal": {"is_church_member": True, "church_tax_rate_type": "high"},
+                "employment": {"gross_salary": 50000},
+            }
+        )
+        data_low = post_calc(
+            {
+                "personal": {"is_church_member": True, "church_tax_rate_type": "low"},
+                "employment": {"gross_salary": 50000},
+            }
+        )
         assert data_low["kirchensteuer"] < data_high["kirchensteuer"]
 
 
 class TestEhegattensplitting:
     def test_married_lower_tax_than_single(self):
         single = post_calc({"employment": {"gross_salary": 200000}})
-        married = post_calc({
-            "personal": {"is_married": True},
-            "employment": {"gross_salary": 200000},
-        })
+        married = post_calc(
+            {
+                "personal": {"is_married": True},
+                "employment": {"gross_salary": 200000},
+            }
+        )
         assert married["tarifliche_est"] < single["tarifliche_est"]
 
     def test_equal_incomes_no_splitting_benefit(self):
         # Both earning same: split gives same result as single×2
-        r = post_calc({
-            "personal": {"is_married": True},
-            "employment": {"gross_salary": 60000},
-        })
+        r = post_calc(
+            {
+                "personal": {"is_married": True},
+                "employment": {"gross_salary": 60000},
+            }
+        )
         assert r["tarifliche_est"] > 0
 
 
@@ -304,77 +319,93 @@ class TestKinderfreibetrag:
         assert data["kinderfreibetrag_used"] == 0
 
     def test_children_kindergeld_paid(self):
-        data = post_calc({
-            "personal": {"num_children": 2},
-            "employment": {"gross_salary": 30000},
-        })
+        data = post_calc(
+            {
+                "personal": {"num_children": 2},
+                "employment": {"gross_salary": 30000},
+            }
+        )
         # At low income, kindergeld wins over Kinderfreibetrag
         assert data["kindergeld_annual"] == 2 * 12 * 259
 
     def test_children_freibetrag_wins_at_high_income(self):
-        data = post_calc({
-            "personal": {"num_children": 1},
-            "employment": {"gross_salary": 200000},
-        })
+        data = post_calc(
+            {
+                "personal": {"num_children": 1},
+                "employment": {"gross_salary": 200000},
+            }
+        )
         # At high income, Kinderfreibetrag reduces more tax than kindergeld
         assert data["kinderfreibetrag_used"] > 0
 
 
 class TestCapitalIncome:
     def test_capital_income_below_pauschbetrag(self):
-        data = post_calc({
-            "investments": {"gross_income": 500, "tax_withheld": 0},
-        })
+        data = post_calc(
+            {
+                "investments": {"gross_income": 500, "tax_withheld": 0},
+            }
+        )
         # Under 1000 Pauschbetrag → no additional tax
         assert data["capital_tax_flat"] == 0
 
     def test_capital_income_above_pauschbetrag(self):
-        data = post_calc({
-            "investments": {"gross_income": 2000, "tax_withheld": 0},
-        })
+        data = post_calc(
+            {
+                "investments": {"gross_income": 2000, "tax_withheld": 0},
+            }
+        )
         taxable = 2000 - 1000  # after Pauschbetrag
         # 25% + 5.5% Soli = 26.375%, int truncated
         expected = int(taxable * 0.25 * 1.055)
         assert data["capital_tax_flat"] == expected
 
     def test_capital_withheld_tax_reduces_due(self):
-        data = post_calc({
-            "investments": {
-                "gross_income": 3000,
-                "tax_withheld": 500,
-            },
-        })
+        data = post_calc(
+            {
+                "investments": {
+                    "gross_income": 3000,
+                    "tax_withheld": 500,
+                },
+            }
+        )
         assert data["capital_tax_withheld"] == 500
 
 
 class TestRefundCalculation:
     def test_overpayment_gives_refund(self):
         # Withhold more than owed → positive refund
-        data = post_calc({
-            "employment": {
-                "gross_salary": 40000,
-                "lohnsteuer_withheld": 20000,
+        data = post_calc(
+            {
+                "employment": {
+                    "gross_salary": 40000,
+                    "lohnsteuer_withheld": 20000,
+                }
             }
-        })
+        )
         assert data["refund_or_payment"] > 0
 
     def test_underpayment_gives_payment(self):
         # Withhold nothing → negative (owe money)
-        data = post_calc({
-            "employment": {
-                "gross_salary": 80000,
-                "lohnsteuer_withheld": 0,
+        data = post_calc(
+            {
+                "employment": {
+                    "gross_salary": 80000,
+                    "lohnsteuer_withheld": 0,
+                }
             }
-        })
+        )
         assert data["refund_or_payment"] < 0
 
     def test_exact_payment_near_zero(self):
-        data = post_calc({
-            "employment": {
-                "gross_salary": 50000,
-                "lohnsteuer_withheld": 10000,
+        data = post_calc(
+            {
+                "employment": {
+                    "gross_salary": 50000,
+                    "lohnsteuer_withheld": 10000,
+                }
             }
-        })
+        )
         total_tax = data["total_tax"]
         assert data["refund_or_payment"] == pytest.approx(10000 - total_tax, abs=1)
 
@@ -603,3 +634,95 @@ class TestInputValidation:
         r = client.get("/health")
         assert r.status_code == 200
         assert r.json() == {"status": "ok"}
+
+
+# ---------------------------------------------------------------------------
+# §33b EStG — Disability Pauschbetrag tests
+# ---------------------------------------------------------------------------
+
+
+class TestDisabilityPauschbetrag:
+    """§33b EStG flat-rate disability allowance reduces taxable income."""
+
+    def test_no_disability_no_deduction(self):
+        """Disabled=False → no disability deduction."""
+        d_no = post_calc({"employment": {"gross_salary": 50_000}})
+        d_dis = post_calc(
+            {
+                "employment": {"gross_salary": 50_000},
+                "personal": {"is_disabled": False, "disability_grade": 50},
+            }
+        )
+        assert d_no["zve"] == d_dis["zve"]
+        assert d_dis.get("disability_pauschbetrag_used", 0) == 0
+
+    def test_gdb_50_reduces_zve(self):
+        """GdB 50 → €1,140 Pauschbetrag deducted from ZVE."""
+        d_no = post_calc({"employment": {"gross_salary": 50_000}})
+        d_dis = post_calc(
+            {
+                "employment": {"gross_salary": 50_000},
+                "personal": {"is_disabled": True, "disability_grade": 50},
+            }
+        )
+        assert d_dis["disability_pauschbetrag_used"] == 1_140
+        assert d_no["zve"] - d_dis["zve"] == pytest.approx(1_140, abs=1)
+        assert d_dis["tarifliche_est"] < d_no["tarifliche_est"]
+
+    def test_gdb_100_reduces_zve(self):
+        """GdB 100 → €2,840 Pauschbetrag."""
+        d = post_calc(
+            {
+                "employment": {"gross_salary": 60_000},
+                "personal": {"is_disabled": True, "disability_grade": 100},
+            }
+        )
+        assert d["disability_pauschbetrag_used"] == 2_840
+
+    def test_gdb_25_band_lookup(self):
+        """GdB 25–30 share the same €620 Pauschbetrag."""
+        d25 = post_calc(
+            {
+                "employment": {"gross_salary": 40_000},
+                "personal": {"is_disabled": True, "disability_grade": 25},
+            }
+        )
+        d30 = post_calc(
+            {
+                "employment": {"gross_salary": 40_000},
+                "personal": {"is_disabled": True, "disability_grade": 30},
+            }
+        )
+        assert d25["disability_pauschbetrag_used"] == 620
+        assert d30["disability_pauschbetrag_used"] == 620
+
+    def test_gdb_below_20_no_allowance(self):
+        """GdB < 20 is not recognised — no deduction."""
+        d = post_calc(
+            {
+                "employment": {"gross_salary": 40_000},
+                "personal": {"is_disabled": True, "disability_grade": 15},
+            }
+        )
+        assert d.get("disability_pauschbetrag_used", 0) == 0
+
+    def test_disability_combined_with_joint_filing(self):
+        """Disability Pauschbetrag applies in both single and joint filing."""
+        d_single = post_calc(
+            {
+                "employment": {"gross_salary": 55_000},
+                "personal": {"is_disabled": True, "disability_grade": 80},
+            }
+        )
+        d_joint = post_calc(
+            {
+                "employment": {"gross_salary": 55_000},
+                "personal": {
+                    "is_married": True,
+                    "is_disabled": True,
+                    "disability_grade": 80,
+                },
+            }
+        )
+        assert d_single["disability_pauschbetrag_used"] == 2_120
+        assert d_joint["disability_pauschbetrag_used"] == 2_120

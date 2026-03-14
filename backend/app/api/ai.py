@@ -1,9 +1,11 @@
 from __future__ import annotations
 
-from pydantic import BaseModel
-from fastapi import APIRouter
+from typing import Optional
 
 from app.services.ollama_service import ollama_service
+from fastapi import APIRouter
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
 
 router = APIRouter()
 
@@ -29,6 +31,13 @@ async def ai_status():
     }
 
 
+@router.get("/models")
+async def list_models():
+    """Return list of locally available Ollama models."""
+    models = await ollama_service.list_models()
+    return {"models": models}
+
+
 @router.post("/categorize-expense")
 async def categorize_expense(request: ExpenseRequest):
     result = await ollama_service.categorize_expense(request.description)
@@ -47,3 +56,33 @@ async def explain_term(term: str):
         return {"explanation": "Term too long to look up."}
     explanation = await ollama_service.explain_tax_term(term)
     return {"term": term, "explanation": explanation}
+
+
+class ChatMessage(BaseModel):
+    role: str  # "user" | "assistant"
+    content: str
+
+
+class ChatRequest(BaseModel):
+    messages: list[ChatMessage]
+    user_context: Optional[dict] = None
+
+
+@router.post("/chat")
+async def chat_stream(request: ChatRequest):
+    if not request.messages or len(request.messages) > 40:
+        return {"error": "Invalid message list."}
+    for msg in request.messages:
+        if msg.role not in ("user", "assistant"):
+            return {"error": "Invalid role."}
+        if len(msg.content) > 4000:
+            return {"error": "Message too long."}
+
+    return StreamingResponse(
+        ollama_service.stream_chat(
+            [{"role": m.role, "content": m.content} for m in request.messages],
+            request.user_context,
+        ),
+        media_type="text/plain; charset=utf-8",
+        headers={"X-Accel-Buffering": "no", "Cache-Control": "no-cache"},
+    )

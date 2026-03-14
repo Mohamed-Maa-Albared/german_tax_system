@@ -5,14 +5,15 @@ Cross-verified against bmf-steuerrechner.de.
 
 All amounts in EUR. Floor (int truncation) applied where the law requires.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 
 from app.models.tax_parameter import TaxYearParameter
 
-
 # ─── Input dataclasses ────────────────────────────────────────────────────────
+
 
 @dataclass
 class EmploymentInput:
@@ -97,6 +98,7 @@ class TaxCalculationInput:
 
 # ─── Output dataclass ────────────────────────────────────────────────────────
 
+
 @dataclass
 class TaxBreakdown:
     """Detailed breakdown shown to the user."""
@@ -146,10 +148,55 @@ class TaxBreakdown:
     effective_rate_percent: float = 0.0
     marginal_rate_percent: float = 0.0
 
+    # §33b EStG disability flat-rate allowance
+    disability_pauschbetrag_used: float = 0.0
+
     suggestions: list = field(default_factory=list)
 
 
+# ─── §33b EStG Disability Pauschbetrag ──────────────────────────────────────
+
+# Behinderten-Pauschbetrag (§33b EStG) — amounts in force since 1 Jan 2021.
+# Key = lowest GdB in each band; value = annual flat-rate allowance in EUR.
+_DISABILITY_PAUSCHBETRAG: dict[int, int] = {
+    20: 384,
+    25: 620,
+    30: 620,
+    35: 860,
+    40: 860,
+    45: 1_140,
+    50: 1_140,
+    55: 1_440,
+    60: 1_440,
+    65: 1_780,
+    70: 1_780,
+    75: 2_120,
+    80: 2_120,
+    85: 2_460,
+    90: 2_460,
+    95: 2_840,
+    100: 2_840,
+}
+
+
+def get_disability_pauschbetrag(grade: int) -> int:
+    """Return the §33b Pauschbetrag for the given Grad der Behinderung (GdB).
+    Returns 0 for GdB < 20 or grade == 0.
+    """
+    if grade < 20:
+        return 0
+    # Find the highest GdB key that does not exceed grade
+    amount = 0
+    for key in sorted(_DISABILITY_PAUSCHBETRAG):
+        if key <= grade:
+            amount = _DISABILITY_PAUSCHBETRAG[key]
+        else:
+            break
+    return amount
+
+
 # ─── §32a EStG Tariff Functions ──────────────────────────────────────────────
+
 
 def calculate_tariff(zve: float, p: TaxYearParameter) -> int:
     """
@@ -228,7 +275,9 @@ def calculate_sonderausgaben(
     Returns 0 if all are zero (caller then applies Pauschale).
     """
     # Health + long-term care insurance: 100% deductible up to pension cap
-    pension_cap = p.max_pension_deduction_joint if is_joint else p.max_pension_deduction_single
+    pension_cap = (
+        p.max_pension_deduction_joint if is_joint else p.max_pension_deduction_single
+    )
     insurance = min(
         s.health_insurance + s.long_term_care_insurance,
         pension_cap,
@@ -252,9 +301,7 @@ def calculate_sonderausgaben(
     church = s.church_fees_paid
 
     # Childcare (§10 Abs.1 Nr.5): 80% of costs up to childcare_max_per_child
-    childcare = min(
-        s.childcare_costs * p.childcare_rate, p.childcare_max_per_child
-    )
+    childcare = min(s.childcare_costs * p.childcare_rate, p.childcare_max_per_child)
 
     return insurance + pension + riester + donations + alimony + church + childcare
 
@@ -330,9 +377,7 @@ def calculate_kinderfreibetrag_vs_kindergeld(
         return 0.0, kindergeld_annual, tax_without
 
 
-def calculate_capital_tax(
-    inv: InvestmentInput, p: TaxYearParameter
-) -> tuple:
+def calculate_capital_tax(inv: InvestmentInput, p: TaxYearParameter) -> tuple:
     """
     Capital income: Abgeltungsteuer 25% + Soli on flat tax.
     Sparer-Pauschbetrag of €1,000 applies first.
@@ -433,6 +478,7 @@ def generate_suggestions(
 
 # ─── Main Calculation Function ────────────────────────────────────────────────
 
+
 def calculate_full_tax(inp: TaxCalculationInput, p: TaxYearParameter) -> TaxBreakdown:
     """
     Full German Einkommensteuer calculation for the given inputs and parameters.
@@ -466,10 +512,14 @@ def calculate_full_tax(inp: TaxCalculationInput, p: TaxYearParameter) -> TaxBrea
     bd.gesamtbetrag_der_einkuenfte = gesamtbetrag
 
     # ── 4. Sonderausgaben ─────────────────────────────────────────────────────
-    sa_actual = calculate_sonderausgaben(inp.special_expenses, p, is_joint, gesamtbetrag)
+    sa_actual = calculate_sonderausgaben(
+        inp.special_expenses, p, is_joint, gesamtbetrag
+    )
     bd.sonderausgaben_actual = sa_actual
     sa_pauschale = (
-        p.sonderausgaben_pauschale_joint if is_joint else p.sonderausgaben_pauschale_single
+        p.sonderausgaben_pauschale_joint
+        if is_joint
+        else p.sonderausgaben_pauschale_single
     )
     bd.sonderausgaben_pauschale = sa_pauschale
     bd.sonderausgaben_used = max(sa_actual, sa_pauschale)
@@ -480,8 +530,16 @@ def calculate_full_tax(inp: TaxCalculationInput, p: TaxYearParameter) -> TaxBrea
     )
     bd.aussergewoehnliche_belastungen = abl
 
+    # ── 6a. §33b Disability Pauschbetrag ─────────────────────────────────────
+    disability_pb = 0.0
+    if pe.is_disabled and pe.disability_grade >= 20:
+        disability_pb = float(get_disability_pauschbetrag(pe.disability_grade))
+    bd.disability_pauschbetrag_used = disability_pb
+
     # ── 6. ZVE before Kinderfreibetrag ────────────────────────────────────────
-    zve_before_kind = max(0.0, gesamtbetrag - bd.sonderausgaben_used - abl)
+    zve_before_kind = max(
+        0.0, gesamtbetrag - bd.sonderausgaben_used - abl - disability_pb
+    )
 
     # ── 7. Choose tariff function ─────────────────────────────────────────────
     tariff_fn = (

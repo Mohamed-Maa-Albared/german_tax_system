@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
-
 from app.database import get_db
-from app.schemas.tax import TaxBreakdownResponse, TaxCalculationRequest, TaxParametersPublicSchema
+from app.schemas.tax import (
+    TaxBreakdownResponse,
+    TaxCalculationRequest,
+    TaxParametersPublicSchema,
+)
 from app.services import parameter_service
 from app.services.tax_calculator import (
     DeductionsInput,
@@ -17,6 +18,8 @@ from app.services.tax_calculator import (
     TaxCalculationInput,
     calculate_full_tax,
 )
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
 
 router = APIRouter()
 
@@ -25,7 +28,9 @@ router = APIRouter()
 def get_active_parameters(db: Session = Depends(get_db)):
     params = parameter_service.get_active_parameters(db)
     if not params:
-        raise HTTPException(status_code=503, detail="No active tax parameters configured.")
+        raise HTTPException(
+            status_code=503, detail="No active tax parameters configured."
+        )
     return params
 
 
@@ -33,7 +38,9 @@ def get_active_parameters(db: Session = Depends(get_db)):
 def get_parameters_by_year(year: int, db: Session = Depends(get_db)):
     params = parameter_service.get_parameters_by_year(db, year)
     if not params:
-        raise HTTPException(status_code=404, detail=f"No parameters found for year {year}.")
+        raise HTTPException(
+            status_code=404, detail=f"No parameters found for year {year}."
+        )
     return params
 
 
@@ -112,6 +119,7 @@ def calculate_tax(request: TaxCalculationRequest, db: Session = Depends(get_db))
         sonderausgaben_pauschale=breakdown.sonderausgaben_pauschale,
         sonderausgaben_used=breakdown.sonderausgaben_used,
         aussergewoehnliche_belastungen=breakdown.aussergewoehnliche_belastungen,
+        disability_pauschbetrag_used=breakdown.disability_pauschbetrag_used,
         kinderfreibetrag_used=breakdown.kinderfreibetrag_used,
         kindergeld_annual=breakdown.kindergeld_annual,
         zve=breakdown.zve,

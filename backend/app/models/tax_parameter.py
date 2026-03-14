@@ -3,10 +3,9 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Optional
 
+from app.database import Base
 from sqlalchemy import Boolean, DateTime, Float, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
-
-from app.database import Base
 
 
 class TaxYearParameter(Base):
@@ -42,7 +41,9 @@ class TaxYearParameter(Base):
     # ── Allowances / Pauschalen ───────────────────────────────────────────────
     kinderfreibetrag: Mapped[float] = mapped_column(Float, nullable=False)
     werbungskosten_pauschale: Mapped[float] = mapped_column(Float, nullable=False)
-    sonderausgaben_pauschale_single: Mapped[float] = mapped_column(Float, nullable=False)
+    sonderausgaben_pauschale_single: Mapped[float] = mapped_column(
+        Float, nullable=False
+    )
     sonderausgaben_pauschale_joint: Mapped[float] = mapped_column(Float, nullable=False)
     sparer_pauschbetrag: Mapped[float] = mapped_column(Float, nullable=False)
 
@@ -101,3 +102,20 @@ class AdminCredential(Base):
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
     )
+
+
+class AdminAuditLog(Base):
+    """Append-only audit trail of admin actions (parameter changes, settings, etc.)."""
+
+    __tablename__ = "admin_audit_log"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    timestamp: Mapped[datetime] = mapped_column(
+        DateTime, default=lambda: datetime.now(timezone.utc), nullable=False, index=True
+    )
+    action: Mapped[str] = mapped_column(String(64), nullable=False)
+    # e.g. "update_parameter", "activate_year", "change_model", "change_password"
+    target: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    # e.g. field name or year
+    old_value: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    new_value: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
