@@ -1,8 +1,10 @@
-from __future__ import annotations
-
+import os
+import pathlib
+import re
 from typing import Optional
 
 from app.database import get_db, settings
+from app.limiter import limiter
 from app.models.tax_parameter import AdminAuditLog, AdminCredential, TaxYearParameter
 from app.schemas.admin import (
     AdminLoginRequest,
@@ -15,17 +17,20 @@ from app.schemas.tax import TaxParametersPublicSchema
 from app.services import parameter_service
 from app.services.admin_service import _create_token, _verify_token, pwd_context
 from app.services.ollama_service import ollama_service
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 router = APIRouter()
 
 
 @router.post("/login", response_model=AdminTokenResponse)
-def admin_login(request: AdminLoginRequest, db: Session = Depends(get_db)):
+@limiter.limit("10/minute")
+def admin_login(
+    request: Request, body: AdminLoginRequest, db: Session = Depends(get_db)
+):
     credential = db.query(AdminCredential).first()
     if not credential or not pwd_context.verify(
-        request.password, credential.password_hash
+        body.password, credential.password_hash
     ):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -94,10 +99,6 @@ def admin_update_settings(
 ):
     """Update Ollama runtime settings. Persists OLLAMA_MODEL to backend/.env."""
     # Validate model name to prevent injection (alphanumeric, colon, dash, dot only)
-    import os
-    import pathlib
-    import re
-
     if req.ollama_model is not None:
         if not re.match(r"^[a-zA-Z0-9_:.\-]+$", req.ollama_model):
             raise HTTPException(status_code=400, detail="Invalid model name format.")
@@ -243,9 +244,8 @@ def delete_year(
         raise HTTPException(status_code=404, detail=f"Year {year} not found.")
     if param.is_active:
         raise HTTPException(status_code=400, detail="Cannot delete the active year.")
-    db.delete(param)
-    db.commit()
     db.add(AdminAuditLog(action="delete_year", target=str(year)))
+    db.delete(param)
     db.commit()
 
 

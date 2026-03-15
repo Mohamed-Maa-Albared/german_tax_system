@@ -1,4 +1,14 @@
-import { AlertCircle, Bot, CheckCircle2, RotateCcw, Send, Sparkles, TrendingUp, User, X } from 'lucide-react'
+import {
+    AlertCircle,
+    Bot,
+    CheckCircle2,
+    RotateCcw,
+    Send,
+    Sparkles,
+    TrendingUp,
+    User,
+    X
+} from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import { Link } from 'react-router-dom'

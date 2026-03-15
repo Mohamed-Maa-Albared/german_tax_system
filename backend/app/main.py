@@ -1,24 +1,45 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+
+from app.api import admin, ai, tax
+from app.database import Base, engine, settings
+from app.limiter import limiter
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-
-from app.database import Base, engine, settings
-from app.api import tax, admin, ai
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
     _seed_initial_data()
+    _warn_insecure_defaults()
     yield
+
+
+def _warn_insecure_defaults():
+    """Log a startup warning when running with known-insecure default secrets."""
+    import logging
+
+    logger = logging.getLogger("smarttax.startup")
+    if settings.admin_secret_key in ("changeme", "secret", ""):
+        logger.warning(
+            "SECURITY: ADMIN_SECRET_KEY is set to an insecure default. "
+            "Set a strong random value in backend/.env before deploying."
+        )
+    if settings.admin_password in ("admin", "password", ""):
+        logger.warning(
+            "SECURITY: ADMIN_PASSWORD is set to an insecure default. "
+            "Change it immediately via the Admin Panel or backend/.env."
+        )
 
 
 def _seed_initial_data():
     """Seed admin credentials and 2026 parameters if they don't exist."""
     from app.database import SessionLocal
-    from app.models.tax_parameter import TaxYearParameter, AdminCredential
+    from app.models.tax_parameter import AdminCredential, TaxYearParameter
     from app.services.admin_service import pwd_context
 
     db = SessionLocal()
@@ -82,6 +103,10 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
 )
+
+# Rate limiter — protects the admin login endpoint against brute force
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 origins = [o.strip() for o in settings.cors_origins.split(",") if o.strip()]
 

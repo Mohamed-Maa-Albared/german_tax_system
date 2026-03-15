@@ -1,4 +1,4 @@
-import { Settings, Sparkles } from 'lucide-react'
+import { FileText, Settings, Sparkles } from 'lucide-react'
 import React from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { cn } from '../lib/utils'
@@ -50,6 +50,18 @@ export default function Layout({ children }: LayoutProps) {
                         >
                             <Sparkles size={14} />
                             AI Advisor
+                        </Link>
+                        <Link
+                            to="/steuerbescheid"
+                            className={cn(
+                                'flex items-center gap-1 text-sm font-medium px-3 py-1.5 rounded-md transition-colors',
+                                location.pathname === '/steuerbescheid'
+                                    ? 'bg-brand-100 text-brand-700'
+                                    : 'text-gray-600 hover:text-brand-700',
+                            )}
+                        >
+                            <FileText size={14} />
+                            Check Bescheid
                         </Link>
                         <Link
                             to="/admin"

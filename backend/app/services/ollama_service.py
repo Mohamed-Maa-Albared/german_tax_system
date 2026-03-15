@@ -1,10 +1,14 @@
 from __future__ import annotations
 
 import json
+import re as _re
 from typing import AsyncGenerator, Optional
 
 import httpx
 from app.database import settings
+
+# Pre-compiled regex to strip <think>…</think> blocks from LLM output.
+_THINK_RE = _re.compile(r"<think>.*?</think>", _re.DOTALL)
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Comprehensive 2026 German Tax Reference — injected into every chat system
@@ -152,8 +156,6 @@ class OllamaService:
         result = await self._query(prompt)
         if result:
             try:
-                import json
-
                 start = result.find("{")
                 end = result.rfind("}") + 1
                 if start >= 0 and end > start:
@@ -209,22 +211,49 @@ class OllamaService:
     def _build_chat_system_prompt(self, user_context: Optional[dict]) -> str:
         """Build a focused system prompt with user context + optimization instructions."""
         intro = (
-            "You are SmartTax Germany's expert tax advisor. Your goal is to help the user understand "
-            "their tax situation and identify genuine savings opportunities.\n\n"
+            "You are SmartTax Germany's expert tax advisor. Your goal is to help the user\n"
+            "understand their tax situation and identify genuine, grounded savings opportunities.\n\n"
             "== CORE RULES ==\n"
-            "1. Always compute EXACT savings: saving = deduction × marginal_rate. Give €amounts, not vague phrases.\n"
-            "2. Cite the law: §9, §10, §32a, §33, §33b EStG.\n"
-            "3. The user's marginal rate is shown below — use it for all savings calculations.\n"
-            "4. Keep answers concise: 150–250 words unless user asks for a full breakdown.\n\n"
+            "1. Exact savings: saving = deduction × marginal_rate. Always give €-amounts, never vague phrases.\n"
+            "2. Cite the law: §9, §10, §32a, §33, §33b EStG, InvStG where relevant.\n"
+            "3. The user's marginal rate is shown in their snapshot — use it for all savings calculations.\n"
+            "4. Keep answers concise: 150–250 words unless user asks for a full breakdown or checklist.\n"
+            "5. For what-if questions ('what if I add €X'): compute exact saving = X × marginal_rate, "
+            "cite the relevant §, and explain any cap that applies.\n\n"
+            "== §33 EXTRAORDINARY BURDENS COACHING ==\n"
+            "Medical/dental/hardship costs (§33 EStG) are only deductible ABOVE the user's\n"
+            "'zumutbare Belastung' threshold (1–7% of income depending on family status and income band).\n"
+            "- Single, no children, income €40k: threshold ~€2,400 (6% × €40k)\n"
+            "- Married, 2 children, income €60k: threshold ~€2,400 (4% × €60k)\n"
+            "Before recommending §33 costs, ALWAYS calculate whether the user is likely to clear the threshold.\n"
+            "If they are below, explain how much more they would need to benefit.\n"
+            "If they are near or above, calculate the deductible excess and the tax saving.\n\n"
+            "== KINDERFREIBETRAG vs KINDERGELD GUIDANCE ==\n"
+            "For users with children: Kindergeld (€259/month/child = €3,108/year) is the default.\n"
+            "The Kinderfreibetrag (€9,756/child) is only used if the resulting tax saving exceeds Kindergeld.\n"
+            "Tax saving from Kinderfreibetrag = €9,756 × marginal_rate (approx).\n"
+            "- At 42% marginal rate: saving = €4,098 → use Kinderfreibetrag (beats €3,108 Kindergeld)\n"
+            "- At 30% marginal rate: saving = €2,927 → keep Kindergeld (beats Kinderfreibetrag)\n"
+            "When asked about children and taxes, explain this comparison and which applies to the user.\n\n"
+            "== DOCUMENT CHECKLIST MODE ==\n"
+            "When asked for a document checklist, produce a structured list organised by category:\n"
+            "1. Employment: Lohnsteuerbescheinigung (from employer by Feb 28), payslips for insurance amounts\n"
+            "2. Work deductions: Fahrtenbuch or commute calculation, home office calendar, equipment receipts\n"
+            "3. Sonderausgaben: Health insurer Beitragsbescheinigung, pension provider Jahresbescheinigung\n"
+            "4. Investments: Jahressteuerbescheinigung from broker (by Jan 31)\n"
+            "5. §33 medical: All doctor/dental/pharmacy receipts; total must exceed the threshold\n"
+            "6. Children: Kita/Tagesmutter invoices; school/Hort receipts; disability GdB certificate if any\n"
+            "7. Donations: Zuwendungsbestätigung for >€300; bank statement for ≤€300\n"
+            "Personalise to the user's situation — only list categories relevant to their data.\n\n"
             "== CHANGE PROPOSALS (APPLY lines) ==\n"
             "You may append APPLY proposals at the VERY END of your reply to update the user's calculator.\n"
             "Format (exact, on its own line):\n"
             'APPLY: {"field":"<field>","value":<number>,"label":"<title>","reason":"<why>","saving_estimate":"~€<n>/year"}\n\n'
             "STRICT RULES — failure to follow means you must NOT output the APPLY line:\n"
-            "- Only propose a value the user EXPLICITLY stated in THIS conversation. "
-            "  E.g. 'I paid €350 in union fees' → value:350. If they said no specific amount → NO APPLY.\n"
+            "- Only propose a value the user EXPLICITLY stated in THIS conversation.\n"
+            "  E.g. 'I paid €350 in union fees' → value:350. No specific amount → NO APPLY.\n"
             "- Exception: home_office_days=210 is OK when user says they work fully from home and current value is 0.\n"
-            '- Include \'reason\' showing the exact evidence: "reason":"you said €350 in union fees".\n'
+            '- Include reason showing exact evidence: "reason":"you said €350 in union fees".\n'
             "- Max 2 APPLY lines per reply. They are the LAST lines — no text after them.\n"
             "- NEVER invent, estimate, or assume values the user has not stated.\n\n"
             "Supported fields:\n"
@@ -385,11 +414,8 @@ class OllamaService:
             },
         }
 
-        # Regex to strip complete <think>…</think> blocks from the streamed output.
+        # _THINK_RE strips complete <think>…</think> blocks from the streamed output.
         # Acts as a safety-net in case the model still emits thinking tokens.
-        import re as _re
-
-        _THINK_RE = _re.compile(r"<think>.*?</think>", _re.DOTALL)
 
         try:
             async with httpx.AsyncClient(

@@ -62,7 +62,7 @@ Every new function in the tax engine (backend or frontend) needs at least one te
 - `reset()` in the Zustand store must restore `taxParams` to `DEFAULT_PARAMS_2026`.
 
 ### 9. Document management for this file
-- Keep the "Completed Work" sections current but **trim sessions older than 3 sessions** — move key facts to the "Pitfalls" table instead of keeping full session narratives. The goal is a _usable_ reference, not a log.
+- Keep the "Completed Work" sections current but **trim sessions older than 3 sessions back** — move key facts to the "Pitfalls" table instead of keeping full session narratives. The goal is a _usable_ reference, not a log.
 - Keep the "Next Session" section actionable and pruned — completed items must be removed.
 - The "Critical Field Name Reference" and "Common Pitfalls" tables are the most valuable sections — always keep them accurate.
 
@@ -121,19 +121,20 @@ All tax logic traces back to `tax_system.MD` (last verified: March 2026 against 
 ## Current State of the Codebase
 
 **Last updated**: March 15, 2026  
-**Session**: 012
+**Session**: 014
 
 ### Test status
 | Suite             | Tests | Result        |
 | ----------------- | ----- | ------------- |
 | Backend (pytest)  | 105   | ✅ All passing |
-| Frontend (vitest) | 64    | ✅ All passing |
-| Total             | 169   | ✅             |
+| Frontend (vitest) | 94    | ✅ All passing |
+| Total             | 199   | ✅             |
 
 ### All files present and working
 
 **Backend** (`backend/`)
-- `app/main.py` — FastAPI app with CORS, routers, lifespan startup seed
+- `app/main.py` — FastAPI app with CORS, routers, lifespan startup seed, insecure-defaults warning
+- `app/limiter.py` — shared `slowapi.Limiter` instance (rate-limits admin login to 10/minute per IP)
 - `app/database.py` — SQLAlchemy engine + `get_db` dependency
 - `app/models/tax_parameter.py` — `TaxYearParameter` + `AdminCredential` + `AdminAuditLog` ORM models
 - `app/schemas/tax.py` — `TaxCalculationRequest` + `TaxBreakdownResponse` Pydantic schemas
@@ -148,35 +149,17 @@ All tax logic traces back to `tax_system.MD` (last verified: March 2026 against 
 **Frontend** (`frontend/`)
 - `src/lib/taxCalculator.ts` — client-side §32a mirror (union fees fix applied)
 - `src/lib/store.ts`, `api.ts`, `utils.ts`, `elsterXml.ts`
+- `src/lib/deductionOpportunities.ts` — deterministic 12-detector missed-deduction engine; `computeOpportunities()` → `OpportunitySummary`
 - `src/types/tax.ts` — full type definitions
 - `src/types/html2pdf.d.ts` — ambient types for html2pdf.js
-- `src/components/` — Layout, FieldHint, AmountToggle, TaxBreakdown, AIHint, ProgressBar, all wizard steps
+- `src/components/` — Layout, FieldHint, AmountToggle, TaxBreakdown, AIHint, ProgressBar, CapIndicator, LStBImport, all wizard steps
 - `src/pages/LandingPage.tsx`, `TaxWizard.tsx`, `AdminPanel.tsx`
-- `src/pages/Results.tsx` — ELSTER XML guide modal (ℹ️ button), improved disclaimers
-- `src/pages/FilingInstructions.tsx` — FilingTimingGuide component (early/late filing advice), programmatic PDF download via html2pdf.js
-- `src/pages/TaxAdvisor.tsx` — full AI advisor with proposal system
-- `src/test/` — taxCalculator (29), store (19), TaxBreakdown (10)
+- `src/pages/Results.tsx` — ELSTER XML guide modal, TaxTwinBenchmark, DeductionScorePanel
+- `src/pages/FilingInstructions.tsx` — FilingTimingGuide, programmatic PDF download
+- `src/pages/TaxAdvisor.tsx` — full AI advisor with APPLY proposals, streaming, snapshot sidebar, suggested questions
+- `src/pages/SteuerbescheidReader.tsx` — post-filing Bescheid comparison; `parseEuro()`, `computeDiscrepancies()`, Einspruch guide; route `/steuerbescheid`
+- `src/test/` — taxCalculator (29), store (19), TaxBreakdown (10), deductionOpportunities (30), total 94
 - `public/logo.svg`, `index.html`, config files
-
-**Docs** (`docs/`)
-- `ARCHITECTURE.md` — system design, pipeline, schema, API reference
-- `AGENT_HANDOFF.md` — this file
-
-**Root**
-- `logo.png`, `tax_system.MD`, `readme.md`, `competitor_analysis.md`, `tax_system_tips_tricks.md`
-
----
-- `src/pages/LandingPage.tsx` — full redesign: hero with plain English, "How it works" steps, feature cards, multi-year deadline callout
-- `src/pages/TaxWizard.tsx`
-- `src/pages/Results.tsx` — added "Get Filing Instructions & Summary" primary CTA button
-- `src/pages/FilingInstructions.tsx` — full filing document page with print/PDF, step-by-step ELSTER instructions, timeline, multi-year guidance, optimisation tips
-- `src/pages/TaxAdvisor.tsx` — full chat interface; streaming response from `/api/ai/chat`; markdown-rendered assistant messages (`react-markdown` + `remark-gfm`); model name loaded dynamically from `/api/ai/status`; sidebar uses `overflow-y-auto` to prevent footer overlap
-- `src/pages/AdminPanel.tsx` — full rewrite: tabbed UI (Dashboard / Tax Parameters / AI Settings / Security); all ~30 params exposed in categorised sections; inline edit; year copy/activate/delete; AI model picker (shows all local models with file size); password change; system health indicators; security checklist
-- `src/App.tsx` — added `/filing` and `/advisor` routes
-- `src/lib/api.ts` — added: `fetchAiStatus`, `fetchAiModels`, `fetchAdminHealth`, `fetchAdminSettings`, `updateAdminSettings`, `changeAdminPassword`, `deleteYear`
-- `src/index.css` — added `@media print` styles
-- `src/test/` — taxCalculator.test.ts (29), store.test.ts (19), TaxBreakdown.test.tsx (10)
-- `public/logo.svg`
 
 **Docs** (`docs/`)
 - `ARCHITECTURE.md` — system design, pipeline, schema, API reference
@@ -204,7 +187,7 @@ All tax logic traces back to `tax_system.MD` (last verified: March 2026 against 
 | Ollama         | Optional. `ollama pull qwen3:latest && ollama serve` — app works without it. Active model: **qwen3:latest** (8B, 5.2 GB). Set via `OLLAMA_MODEL` in `backend/.env`. `num_predict` is 350 tokens to reduce CPU load. |
 
 ### Known environment constraints
-- **Python 3.9**: Use `Optional[X]` not `X | None`, use `from __future__ import annotations` at top of every file
+- **Python 3.9**: Use `Optional[X]` not `X | None`, use `from __future__ import annotations` at top of every file **EXCEPT** route files that use `@limiter.limit()` or other cross-module decorators — those must omit it or `get_type_hints()` will fail to resolve annotation strings (see Pitfalls table)
 - **bcrypt version**: Must stay at `4.0.1` (not 5.x) for passlib compatibility
 - **httpx**: Use `httpx.AsyncClient` in `ollama_service.py` — `aiohttp` is NOT installed
 - **jsdom v27**: Has ESM conflicts — use `happy-dom` for frontend component tests
@@ -271,29 +254,34 @@ specialExpenses: { healthInsurance, longTermCareInsurance, pensionContributions,
 
 ## Common Pitfalls (Learned the Hard Way)
 
-| Pitfall                                                      | Fix                                                                                                                                                                                           |
-| ------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `self_employed: null` or `rental: null` in API payload       | Omit key entirely — schema uses default empty objects                                                                                                                                         |
-| `stores.reset()` doesn't restore taxParams                   | reset() must include `taxParams: DEFAULT_PARAMS_2026`                                                                                                                                         |
-| TaxBreakdown.test.tsx fails with `document is not defined`   | Add `// @vitest-environment happy-dom` at top of file                                                                                                                                         |
-| `aiohttp` not available                                      | Use `httpx.AsyncClient` in ollama_service.py                                                                                                                                                  |
-| `create_file` on existing file fails                         | Use `replace_string_in_file` instead                                                                                                                                                          |
-| Rate assertions with exact floats fail                       | Use `pytest.approx(42.0, abs=1.0)` for marginal rates                                                                                                                                         |
-| `commute_days: 220` in test default payload                  | Use `0` — 220 adds significant Werbungskosten, skewing refund tests                                                                                                                           |
-| `aussergewoehnliche_belast` field name in tests/code         | WRONG — use `aussergewoehnliche_belastungen` (fixed in session 003)                                                                                                                           |
-| `Math.floor(zve)` missing in frontend tariff zones           | Must be present — was added session 003, do NOT remove it                                                                                                                                     |
-| Zustand store state after hard refresh                       | persist middleware active — key `'smarttax-wizard'` in localStorage                                                                                                                           |
-| `disabilityGrade` in store without `isDisabled: true`        | §33b allowance not yet calculated — data captured, future session                                                                                                                             |
-| pydantic v1 style `class Config` in Settings                 | Raises DeprecatedSince20 warning — harmless for now (Python 3.9)                                                                                                                              |
-| `react-markdown` v10 requires ESM                            | Vite handles ESM natively — no vitest config change needed (TaxAdvisor not unit-tested)                                                                                                       |
-| `APPLY:` proposal lines visible during streaming             | `parseResponse()` strips them live via `String.replace` on each chunk — they never flash to user                                                                                              |
-| `think: False` inside `options` for qwen3                    | WRONG — must be top-level key in the Ollama `/api/chat` payload, not nested in `options`                                                                                                      |
-| `fund_type` default for investments                          | Always send `\"standard\"` explicitly when testing non-ETF income to avoid skewing cap checks                                                                                                 |
-| `calculate_capital_tax` now returns 3-tuple                  | Unpack as `capital_tax_due, sparer_used, exempt = calculate_capital_tax(...)`                                                                                                                 |
-| `LStBImport` reads file as `ISO-8859-15`                     | ELSTER XML files use ISO-8859-15 encoding — do NOT use UTF-8 or you'll get garbled Umlauts                                                                                                    |
-| `salaryPeriods` months must sum to 12                        | Otherwise annual gross is wrong; UI shows a warning but doesn't block submission                                                                                                              |
-| Alembic `env.py` needs `sys.path` setup                      | `sys.path.insert(0, ...)` must come before importing `app.database` in `alembic/env.py`                                                                                                       |
-| `valueAsNumber: true` + empty input → `NaN`, not `undefined` | `NaN ?? 0 === NaN` — nullish coalescing does NOT guard NaN. Use `\|\| 0` in `onSubmit` for all optional numeric fields. Apply to both the form handler and the calculator (defence in depth). |
+| Pitfall                                                                        | Fix                                                                                                                                                                                                                                                                                   |
+| ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `self_employed: null` or `rental: null` in API payload                         | Omit key entirely — schema uses default empty objects                                                                                                                                                                                                                                 |
+| `stores.reset()` doesn't restore taxParams                                     | reset() must include `taxParams: DEFAULT_PARAMS_2026`                                                                                                                                                                                                                                 |
+| TaxBreakdown.test.tsx fails with `document is not defined`                     | Add `// @vitest-environment happy-dom` at top of file                                                                                                                                                                                                                                 |
+| `aiohttp` not available                                                        | Use `httpx.AsyncClient` in ollama_service.py                                                                                                                                                                                                                                          |
+| `create_file` on existing file fails                                           | Use `replace_string_in_file` instead                                                                                                                                                                                                                                                  |
+| Rate assertions with exact floats fail                                         | Use `pytest.approx(42.0, abs=1.0)` for marginal rates                                                                                                                                                                                                                                 |
+| `commute_days: 220` in test default payload                                    | Use `0` — 220 adds significant Werbungskosten, skewing refund tests                                                                                                                                                                                                                   |
+| `aussergewoehnliche_belast` field name in tests/code                           | WRONG — use `aussergewoehnliche_belastungen` (fixed in session 003)                                                                                                                                                                                                                   |
+| `Math.floor(zve)` missing in frontend tariff zones                             | Must be present — was added session 003, do NOT remove it                                                                                                                                                                                                                             |
+| Zustand store state after hard refresh                                         | persist middleware active — key `'smarttax-wizard'` in localStorage                                                                                                                                                                                                                   |
+| `disabilityGrade` in store without `isDisabled: true`                          | §33b allowance not yet calculated — data captured, future session                                                                                                                                                                                                                     |
+| pydantic v1 style `class Config` in Settings                                   | Raises DeprecatedSince20 warning — harmless for now (Python 3.9)                                                                                                                                                                                                                      |
+| `react-markdown` v10 requires ESM                                              | Vite handles ESM natively — no vitest config change needed (TaxAdvisor not unit-tested)                                                                                                                                                                                               |
+| `APPLY:` proposal lines visible during streaming                               | `parseResponse()` strips them live via `String.replace` on each chunk — they never flash to user                                                                                                                                                                                      |
+| `think: False` inside `options` for qwen3                                      | WRONG — must be top-level key in the Ollama `/api/chat` payload, not nested in `options`                                                                                                                                                                                              |
+| `fund_type` default for investments                                            | Always send `\"standard\"` explicitly when testing non-ETF income to avoid skewing cap checks                                                                                                                                                                                         |
+| `calculate_capital_tax` now returns 3-tuple                                    | Unpack as `capital_tax_due, sparer_used, exempt = calculate_capital_tax(...)`                                                                                                                                                                                                         |
+| `LStBImport` reads file as `ISO-8859-15`                                       | ELSTER XML files use ISO-8859-15 encoding — do NOT use UTF-8 or you'll get garbled Umlauts                                                                                                                                                                                            |
+| `salaryPeriods` months must sum to 12                                          | Otherwise annual gross is wrong; UI shows a warning but doesn't block submission                                                                                                                                                                                                      |
+| Alembic `env.py` needs `sys.path` setup                                        | `sys.path.insert(0, ...)` must come before importing `app.database` in `alembic/env.py`                                                                                                                                                                                               |
+| `valueAsNumber: true` + empty input → `NaN`, not `undefined`                   | `NaN ?? 0 === NaN` — nullish coalescing does NOT guard NaN. Use `\|\| 0` in `onSubmit` for all optional numeric fields. Apply to both the form handler and the calculator (defence in depth).                                                                                         |
+| `from __future__ import annotations` + `@limiter.limit()` decorator            | `functools.wraps` loses the function's `__globals__`, so FastAPI's `get_type_hints()` can't resolve annotation strings. **Solution**: do NOT use `from __future__ import annotations` in route files that use slowapi decorators (use explicit `Optional[X]` syntax instead).         |
+| `slowapi` limiter must be defined in a shared module (`app/limiter.py`)        | If defined in `main.py`, importing from `api/admin.py` creates a circular import. Always define `limiter = Limiter(...)` in `app/limiter.py` and import it in both.                                                                                                                   |
+| `parseEuro` in SteuerbescheidReader — English `"1234.56"` format               | Stripping all dots BEFORE checking for commas breaks English decimals. Fix: check for comma first; if present → German format (strip dots, swap comma); otherwise use as-is.                                                                                                          |
+| `computeScore` in deductionOpportunities — detectors return `None` when at-cap | Items that are at-cap or fully claimed return `null` from detectors and are ABSENT from the opportunities array. `claimedValue` in the score formula will therefore always be 0. Score = `claimedValue / (claimedValue + totalPotential)` only reflects the score of REMAINING items. |
+| `computeOpportunities` called in both Results.tsx and TaxAdvisor.tsx           | Both call it on every render — pure functions, fast in practice. If performance degrades, memoize with `useMemo`.                                                                                                                                                                     |
 
 ---
 
@@ -446,27 +434,57 @@ specialExpenses: { healthInsurance, longTermCareInsurance, pensionContributions,
 
 ---
 
-## Next Session — Planned Work (SESSION_013)
+## Completed Work (Session 013 — March 15, 2026)
 
-**Admin Panel improvements (documented this session):**
+**AI Advisor — 5 top advisor priority features:**
+- [x] **`deductionOpportunities.ts`** — new deterministic engine with 12 `detect*` functions; `computeOpportunities()` returns `OpportunitySummary` with opportunities array, score, potential savings range, marginal rate. Completely client-side, zero AI calls.
+- [x] **`TaxAdvisor.tsx` full rewrite** — three-tab UI (Chat / Opportunities / Refund Diagnosis); sidebar with Deduction Score badge, unclaimed alert, what-if quick-sends; `OpportunityCard`, `RefundDiagnosis`, `ConfidenceBadge` sub-components; suggested questions powered by opportunity engine.
+- [x] **`ollama_service.py` system prompt upgrade** — added §33 coaching (zumutbare Belastung calculation), Kinderfreibetrag vs Kindergeld comparison formula, document checklist mode (7 categories), what-if Rule 5.
+- [x] **`DeductionScorePanel` in Results.tsx** — score bar (green/amber/red), unclaimed count, top 3 expandable opportunities, CTA to advisor.
+
+**Broader product bets (first 2):**
+- [x] **`SteuerbescheidReader.tsx`** — new page at `/steuerbescheid`; manual entry of 5 Bescheid fields; Einspruch deadline calculator; `computeDiscrepancies()` severity-coded comparison; collapsible Einspruch 5-step guide; AI advisor CTA.
+- [x] **Route + nav** — `/steuerbescheid` added to `App.tsx`; "Check Bescheid" nav link with `FileText` icon added to `Layout.tsx`.
+
+**New tests:**
+- [x] `deductionOpportunities.test.ts` — 30 tests: health insurance, home office, union fees, childcare, disability, Riester detection; score formula; marginal rate; sorting.
+
+- [x] Backend tests: 105/105 ✅. Frontend: 64 → 94 (30 new). All passing ✅.
+
+---
+
+## Completed Work (Session 014 — March 15, 2026)
+
+**Security & Maintainability Audit — all findings fixed:**
+
+- [x] **🔴 Bug fix — `delete_year` audit log ordering** (`api/admin.py`): Audit log entry was added AFTER `db.commit()` that deletes the row. Second commit could fail silently, losing the audit record. Fixed: `db.add(AdminAuditLog(...))` now comes BEFORE `db.delete(param)` in the same transaction.
+- [x] **🔴 Bug fix — `parseEuro` English decimal format** (`SteuerbescheidReader.tsx`): `"1234.56"` was parsed as `123456` because all dots were stripped unconditionally. Fixed: check for comma first to detect German format (`1.234,56`); English/integer format (`1234.56` or `1234`) goes through unchanged.
+- [x] **🟠 Security — brute force protection on admin login** (`main.py`, `api/admin.py`, new `app/limiter.py`): `slowapi` was in requirements but never wired. Created `app/limiter.py` with shared `Limiter(key_func=get_remote_address)`. Attached to `app.state.limiter` in `main.py`. Applied `@limiter.limit("10/minute")` to `POST /api/admin/login`.
+- [x] **🟠 Security — `TaxParametersUpdateSchema` input validation** (`schemas/admin.py`): All 34 parameter fields were `Optional[float] = None` with no constraints. Added `ge`/`le` bounds on every field — rate fields constrained to `[0, 1]`, monetary fields to reasonable ranges, preventing an authenticated admin from setting `zone4_rate=999`.
+- [x] **🟠 Security — startup warning for insecure defaults** (`main.py`): Added `_warn_insecure_defaults()` called in lifespan. Logs `WARNING` if `ADMIN_SECRET_KEY` is `"changeme"` or `ADMIN_PASSWORD` is `"admin"`. Does not block startup but makes misconfiguration visible in logs.
+- [x] **🟡 Maintainability — inline imports moved to module level** (`api/admin.py`): `import os`, `import pathlib`, `import re` were inside the `admin_update_settings()` function body. Moved to top of file.
+- [x] **🟡 Maintainability — `import re as _re` moved to module level** (`ollama_service.py`): Was re-compiled inside `stream_chat` on every call. Moved to module level as `import re as _re` and `_THINK_RE = _re.compile(...)` constant.
+- [x] **🟡 Maintainability — redundant `import json` removed** (`ollama_service.py`): `import json` inside `categorize_expense()` body was a duplicate of the top-level import.
+
+- [x] Backend tests: 105/105 ✅. Frontend: 94/94 ✅. All passing.
+
+---
+
+## Next Session — Planned Work
+
+**Admin Panel improvements:**
 - [ ] **Expose `notes` field per year** — currently in DB but not shown in the UI; add a text area in the parameters section.
-- [ ] **Year comparison view** — show parameters for two years side-by-side so admins can spot which values changed between years (e.g. 2025 → 2026 Grundfreibetrag diff).
-- [ ] **Parameter validation warnings** — client-side rules: zone limits must be ascending, rates must be < 1.0, Pauschbetrag > 0. Warn inline before save.
-- [ ] **Bulk export/import** — "Export as JSON" button alongside each year so admins can back up or share parameters; matching "Import from JSON" to restore.
-- [ ] **Audit log filtering** — filter by action type (UPDATE/CREATE/DELETE) and date range; currently shows all 20 entries unfiltered.
-- [ ] **AI model management** — Show disk usage per model; "Delete model" button that calls `ollama rm`; currently can only switch, not remove.
+- [ ] **Year comparison view** — show parameters for two years side-by-side so admins can spot which values changed between years.
+- [ ] **Bulk export/import** — "Export as JSON" + "Import from JSON" per year.
+- [ ] **Audit log filtering** — filter by action type and date range.
+- [ ] **AI model management** — Show disk usage per model; "Delete model" button calling `ollama rm`.
 
-**Medium priority (from competitor analysis):**
-- [ ] **Foreign income (Anlage AUS)** fields: country, gross income, foreign tax paid, treaty method (exemption or credit).
-- [ ] **"Tax Twin" benchmark** — currently shows static averages; future: aggregate real user data into percentile buckets (requires opt-in data collection).
-- [ ] **Steuerbescheid Reader** — OCR a Finanzamt assessment letter, compare against calculated numbers, flag discrepancies. High impact, requires PDF/image pipeline.
-
-**Advanced:**
-- [ ] Life Event Tax Planner (marriage, child, freelance — projects next year's tax).
-- [ ] Gewerbesteuer for self-employed.
-- [ ] Penalty-Free Deadline Tracker with push alerts (calendar integration).
-- [ ] Deduction Score™ — gamified 0–100 optimization score updated live.
-- [ ] Marginal Rate "What-If" Dial — live slider on Results page to see refund change in real time.
+**Medium priority:**
+- [ ] **Foreign income (Anlage AUS)** fields: country, gross income, foreign tax paid, treaty method.
+- [ ] **Steuerbescheid Reader OCR upgrade** — current version is manual entry; add PDF/image OCR pipeline.
+- [ ] **Life Event Tax Planner** — project next year's tax for marriage/child/freelance events.
+- [ ] **Gewerbesteuer** for self-employed.
+- [ ] **Playwright E2E tests**.
   
 ---
 

@@ -2,6 +2,7 @@ import { Bot, Download, Edit3, FileCode2, RefreshCw, TrendingUp, Users, X } from
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import TaxBreakdownComponent from '../components/TaxBreakdown'
+import { computeOpportunities } from '../lib/deductionOpportunities'
 import { downloadElsterXml } from '../lib/elsterXml'
 import { useTaxStore } from '../lib/store'
 import { formatCurrency } from '../lib/utils'
@@ -164,6 +165,90 @@ function TaxTwinBenchmark({ grossIncome, refundOrPayment }: { grossIncome: numbe
     )
 }
 
+// ─── Deduction Score Panel ────────────────────────────────────────────────────
+function DeductionScorePanel() {
+    const { personal, employment, otherIncome, deductions, specialExpenses, result } = useTaxStore()
+    const navigate = useNavigate()
+    const [expanded, setExpanded] = useState(false)
+
+    if (!result || employment.grossSalary <= 0) return null
+
+    const summary = computeOpportunities(personal, employment, otherIncome, deductions, specialExpenses, result)
+    const { deductionScore, opportunities, totalPotentialSavingMin, totalPotentialSavingMax } = summary
+    const unclaimed = opportunities.filter((o) => !o.alreadyClaiming)
+
+    const scoreColor =
+        deductionScore >= 80 ? 'text-green-600' :
+            deductionScore >= 55 ? 'text-amber-600' : 'text-red-500'
+
+    const barColor =
+        deductionScore >= 80 ? 'bg-green-400' :
+            deductionScore >= 55 ? 'bg-amber-400' : 'bg-red-400'
+
+    return (
+        <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
+            <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                    <TrendingUp size={16} className="text-brand-600" />
+                    <h2 className="text-sm font-semibold text-gray-800">Deduction Score</h2>
+                </div>
+                <div className={`text-2xl font-extrabold ${scoreColor}`}>
+                    {deductionScore}<span className="text-xs text-gray-400 font-normal">/100</span>
+                </div>
+            </div>
+            <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden mb-2">
+                <div
+                    className={`h-full rounded-full transition-all duration-700 ${barColor}`}
+                    style={{ width: `${deductionScore}%` }}
+                />
+            </div>
+            <p className="text-xs text-gray-500 mb-3">
+                {deductionScore >= 80
+                    ? '✅ Well optimized — your return looks comprehensive.'
+                    : unclaimed.length > 0
+                        ? `${unclaimed.length} potential deduction${unclaimed.length > 1 ? 's' : ''} detected — possible saving ${formatCurrency(totalPotentialSavingMin)}–${formatCurrency(totalPotentialSavingMax)}`
+                        : 'Some optimization opportunities may exist — ask the AI advisor.'}
+            </p>
+
+            {unclaimed.length > 0 && (
+                <>
+                    <button
+                        onClick={() => setExpanded((e) => !e)}
+                        className="text-xs text-brand-600 hover:text-brand-700 font-medium flex items-center gap-1 mb-2"
+                    >
+                        {expanded ? '▲ Hide' : '▼ Show'} top opportunities
+                    </button>
+                    {expanded && (
+                        <div className="space-y-2 mb-3">
+                            {unclaimed.slice(0, 3).map((opp) => (
+                                <div key={opp.id} className="flex items-start gap-2 text-xs bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                                    <span className="text-amber-500 shrink-0 mt-0.5">💡</span>
+                                    <div>
+                                        <p className="font-semibold text-amber-900">{opp.title}</p>
+                                        <p className="text-amber-700 mt-0.5">
+                                            ~{formatCurrency(opp.estimatedSavingMin)}–{formatCurrency(opp.estimatedSavingMax)} saving · {opp.lawRef}
+                                        </p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </>
+            )}
+
+            <button
+                onClick={() => navigate('/advisor')}
+                className="w-full flex items-center justify-center gap-2 text-xs font-medium px-3 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg transition-colors"
+            >
+                <Bot size={12} />
+                {unclaimed.length > 0
+                    ? `Open AI Advisor — find ${unclaimed.length} missed deduction${unclaimed.length > 1 ? 's' : ''}`
+                    : 'Open AI Advisor for personalized advice'}
+            </button>
+        </div>
+    )
+}
+
 export default function Results() {
     const navigate = useNavigate()
     const { result, personal, employment, reset, resultsHistory } = useTaxStore()
@@ -226,6 +311,9 @@ export default function Results() {
 
             {/* ── Tax Twin benchmark ── */}
             <TaxTwinBenchmark grossIncome={result.gross_income} refundOrPayment={result.refund_or_payment} />
+
+            {/* ── Deduction Score ── */}
+            <DeductionScorePanel />
 
             {/* ── Multi-year comparison ── */}
             {comparisonRows.length > 1 && (

@@ -26,40 +26,42 @@ class AdminSettingsUpdateRequest(BaseModel):
 
 
 class TaxParametersUpdateSchema(BaseModel):
-    """Partial update schema — all fields optional."""
+    """Partial update schema — all fields optional.
+    Range constraints mirror the legal limits from §32a EStG and SolZG.
+    """
 
-    notes: Optional[str] = None
-    grundfreibetrag: Optional[float] = None
-    zone2_limit: Optional[float] = None
-    zone3_limit: Optional[float] = None
-    zone4_limit: Optional[float] = None
-    zone2_coeff1: Optional[float] = None
-    zone2_coeff2: Optional[float] = None
-    zone3_coeff1: Optional[float] = None
-    zone3_coeff2: Optional[float] = None
-    zone3_offset: Optional[float] = None
-    zone4_rate: Optional[float] = None
-    zone4_offset: Optional[float] = None
-    zone5_rate: Optional[float] = None
-    zone5_offset: Optional[float] = None
-    kinderfreibetrag: Optional[float] = None
-    werbungskosten_pauschale: Optional[float] = None
-    sonderausgaben_pauschale_single: Optional[float] = None
-    sonderausgaben_pauschale_joint: Optional[float] = None
-    sparer_pauschbetrag: Optional[float] = None
-    pendlerpauschale_per_km: Optional[float] = None
-    homeoffice_per_day: Optional[float] = None
-    homeoffice_max_days: Optional[int] = None
-    kindergeld_per_month: Optional[float] = None
-    soli_rate: Optional[float] = None
-    soli_freigrenze_single: Optional[float] = None
-    soli_freigrenze_joint: Optional[float] = None
-    kirchensteuer_rate_high: Optional[float] = None
-    kirchensteuer_rate_low: Optional[float] = None
-    max_pension_deduction_single: Optional[float] = None
-    max_pension_deduction_joint: Optional[float] = None
-    alimony_max: Optional[float] = None
-    ehrenamt_allowance: Optional[float] = None
-    uebungsleiter_allowance: Optional[float] = None
-    childcare_rate: Optional[float] = None
-    childcare_max_per_child: Optional[float] = None
+    notes: Optional[str] = Field(None, max_length=1000)
+    grundfreibetrag: Optional[float] = Field(None, ge=0, le=50_000)
+    zone2_limit: Optional[float] = Field(None, ge=0, le=100_000)
+    zone3_limit: Optional[float] = Field(None, ge=0, le=200_000)
+    zone4_limit: Optional[float] = Field(None, ge=0, le=2_000_000)
+    zone2_coeff1: Optional[float] = Field(None, ge=0, le=10_000)
+    zone2_coeff2: Optional[float] = Field(None, ge=0, le=10_000)
+    zone3_coeff1: Optional[float] = Field(None, ge=0, le=10_000)
+    zone3_coeff2: Optional[float] = Field(None, ge=0, le=10_000)
+    zone3_offset: Optional[float] = Field(None, ge=0, le=100_000)
+    zone4_rate: Optional[float] = Field(None, ge=0, le=1)
+    zone4_offset: Optional[float] = Field(None, ge=0, le=100_000)
+    zone5_rate: Optional[float] = Field(None, ge=0, le=1)
+    zone5_offset: Optional[float] = Field(None, ge=0, le=100_000)
+    kinderfreibetrag: Optional[float] = Field(None, ge=0, le=50_000)
+    werbungskosten_pauschale: Optional[float] = Field(None, ge=0, le=10_000)
+    sonderausgaben_pauschale_single: Optional[float] = Field(None, ge=0, le=1_000)
+    sonderausgaben_pauschale_joint: Optional[float] = Field(None, ge=0, le=2_000)
+    sparer_pauschbetrag: Optional[float] = Field(None, ge=0, le=10_000)
+    pendlerpauschale_per_km: Optional[float] = Field(None, ge=0, le=2)
+    homeoffice_per_day: Optional[float] = Field(None, ge=0, le=50)
+    homeoffice_max_days: Optional[int] = Field(None, ge=0, le=365)
+    kindergeld_per_month: Optional[float] = Field(None, ge=0, le=1_000)
+    soli_rate: Optional[float] = Field(None, ge=0, le=0.2)
+    soli_freigrenze_single: Optional[float] = Field(None, ge=0, le=200_000)
+    soli_freigrenze_joint: Optional[float] = Field(None, ge=0, le=400_000)
+    kirchensteuer_rate_high: Optional[float] = Field(None, ge=0, le=0.2)
+    kirchensteuer_rate_low: Optional[float] = Field(None, ge=0, le=0.2)
+    max_pension_deduction_single: Optional[float] = Field(None, ge=0, le=200_000)
+    max_pension_deduction_joint: Optional[float] = Field(None, ge=0, le=400_000)
+    alimony_max: Optional[float] = Field(None, ge=0, le=100_000)
+    ehrenamt_allowance: Optional[float] = Field(None, ge=0, le=10_000)
+    uebungsleiter_allowance: Optional[float] = Field(None, ge=0, le=50_000)
+    childcare_rate: Optional[float] = Field(None, ge=0, le=1)
+    childcare_max_per_child: Optional[float] = Field(None, ge=0, le=20_000)
