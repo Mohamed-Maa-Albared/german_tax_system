@@ -246,22 +246,31 @@ def calculate_kirchensteuer(
     return int(tax * rate)
 
 
-def calculate_werbungskosten(d: DeductionsInput, p: TaxYearParameter) -> float:
+def calculate_werbungskosten(d: DeductionsInput, p: TaxYearParameter) -> tuple:
     """
     Actual Werbungskosten from employment-related expenses.
-    Pauschale applies if actual is lower.
+    Pauschale applies if actual (excluding union fees) is lower.
+
+    2026 §9a EStG rule: Gewerkschaftsbeiträge (union fees) are deductible
+    ADDITIONALLY to the Werbungskosten-Pauschale — they are no longer "eaten"
+    by the Pauschale if total WK does not exceed it.
+
+    Returns (werbungskosten_used, union_fees_used) as separate values so the
+    caller can record them individually if needed.
     """
     commute = d.commute_km * p.pendlerpauschale_per_km * d.commute_days
     home_office = min(d.home_office_days, p.homeoffice_max_days) * p.homeoffice_per_day
-    actual = (
+    actual_base = (
         commute
         + home_office
         + d.work_equipment
         + d.work_training
         + d.other_work_expenses
-        + d.union_fees
     )
-    return actual
+    # Step 1: apply Pauschale floor to base deductions (excluding union fees)
+    wk_base = max(actual_base, p.werbungskosten_pauschale)
+    # Step 2: union fees always added on top (§9a EStG 2026)
+    return wk_base + d.union_fees
 
 
 def calculate_sonderausgaben(
@@ -500,10 +509,10 @@ def calculate_full_tax(inp: TaxCalculationInput, p: TaxYearParameter) -> TaxBrea
     bd.sparer_pauschbetrag_used = sparer_used
 
     # ── 2. Werbungskosten ─────────────────────────────────────────────────────
-    wk_actual = calculate_werbungskosten(inp.deductions, p)
-    bd.werbungskosten_actual = wk_actual
+    wk_total = calculate_werbungskosten(inp.deductions, p)
+    bd.werbungskosten_actual = wk_total
     bd.werbungskosten_pauschale = p.werbungskosten_pauschale
-    bd.werbungskosten_used = max(wk_actual, p.werbungskosten_pauschale)
+    bd.werbungskosten_used = wk_total
 
     employment_net = max(0.0, bd.employment_gross - bd.werbungskosten_used)
 

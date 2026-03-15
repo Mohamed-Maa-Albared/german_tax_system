@@ -726,3 +726,361 @@ class TestDisabilityPauschbetrag:
         )
         assert d_single["disability_pauschbetrag_used"] == 2_120
         assert d_joint["disability_pauschbetrag_used"] == 2_120
+
+
+# ---------------------------------------------------------------------------
+# Advisor scenario tests — real-world user profiles
+# All scenarios exercise the full calculation pipeline with realistic inputs.
+# They serve as regression tests AND document what the advisor must handle.
+# ---------------------------------------------------------------------------
+
+
+def _scenario(overrides: dict) -> dict:
+    """Alias for post_calc with a descriptive name for scenario tests."""
+    return post_calc(overrides)
+
+
+class TestAdvisorScenarioBasicEmployee:
+    """
+    Scenario 1 — Standard salaried employee, no deductions entered.
+    Profile: Single, €42,000 gross, minimal withholding.
+    Advisor should flag: home office, health insurance, commute potential.
+    """
+
+    def test_refund_with_overpayment(self):
+        # Use 10,000 withholding — tax at 42k gross is ~7,400 → refund expected
+        d = _scenario(
+            {
+                "employment": {
+                    "gross_salary": 42_000,
+                    "lohnsteuer_withheld": 10_000,
+                },
+            }
+        )
+        assert d["refund_or_payment"] > 0
+
+    def test_suggestions_not_empty(self):
+        d = _scenario({"employment": {"gross_salary": 42_000}})
+        assert len(d["suggestions"]) > 0
+
+    def test_wk_pauschale_auto_applied(self):
+        # No deductions entered → Werbungskosten-Pauschale (€1,230) auto-applied
+        d = _scenario({"employment": {"gross_salary": 42_000}})
+        assert d["werbungskosten_used"] == 1_230
+
+
+class TestAdvisorScenarioExpat:
+    """
+    Scenario 2 — Expat employee, high gross, church member.
+    Profile: Single, €75,000 gross, church member (9%), no commute.
+    Advisor should flag: Pendlerpauschale potential, health insurance deduction,
+    and note that church exit would save 9% of income tax.
+    """
+
+    def test_church_tax_applied(self):
+        d = _scenario(
+            {
+                "personal": {"is_church_member": True, "church_tax_rate_type": "high"},
+                "employment": {"gross_salary": 75_000},
+            }
+        )
+        assert d["kirchensteuer"] > 0
+        assert d["kirchensteuer"] == math.floor(d["tarifliche_est"] * 0.09)
+
+    def test_marginal_rate_42_at_75k(self):
+        d = _scenario({"employment": {"gross_salary": 75_000}})
+        assert d["marginal_rate_percent"] == pytest.approx(42.0, abs=1.0)
+
+    def test_effective_rate_in_range(self):
+        d = _scenario({"employment": {"gross_salary": 75_000}})
+        assert 20.0 < d["effective_rate_percent"] < 40.0
+
+
+class TestAdvisorScenarioFamilyWithChildren:
+    """
+    Scenario 3 — Married couple with 2 children.
+    Profile: Joint filing, €80k gross, 2 children, childcare costs.
+    Advisor should confirm: Günstigerprüfung (Kinderfreibetrag vs Kindergeld),
+    childcare deductibility, splitting benefit.
+    """
+
+    def test_kinderfreibetrag_wins_at_high_income(self):
+        # At ~150k joint, tax saving from Kinderfreibetrag (2×9756=19512) exceeds
+        # Kindergeld (2×12×259=6216) at 42% marginal rate.
+        d = _scenario(
+            {
+                "personal": {"is_married": True, "num_children": 2},
+                "employment": {"gross_salary": 150_000},
+            }
+        )
+        assert d["kinderfreibetrag_used"] > 0
+
+    def test_joint_filing_lower_than_single(self):
+        single = _scenario(
+            {
+                "personal": {"is_married": False},
+                "employment": {"gross_salary": 80_000},
+            }
+        )
+        joint = _scenario(
+            {
+                "personal": {"is_married": True},
+                "employment": {"gross_salary": 80_000},
+            }
+        )
+        assert joint["tarifliche_est"] < single["tarifliche_est"]
+
+    def test_childcare_costs_reduce_zve(self):
+        d_no = _scenario(
+            {
+                "personal": {"num_children": 1, "is_married": True},
+                "employment": {"gross_salary": 70_000},
+            }
+        )
+        d_with = _scenario(
+            {
+                "personal": {"num_children": 1, "is_married": True},
+                "employment": {"gross_salary": 70_000},
+                "special_expenses": {"childcare_costs": 6_000},
+            }
+        )
+        assert d_with["zve"] < d_no["zve"]
+
+    def test_kindergeld_amount_two_children(self):
+        d = _scenario(
+            {
+                "personal": {"num_children": 2},
+                "employment": {"gross_salary": 30_000},
+            }
+        )
+        assert d["kindergeld_annual"] == 2 * 12 * 259  # €6,216/year
+
+
+class TestAdvisorScenarioFreelancer:
+    """
+    Scenario 4 — Freelancer / self-employed, no employment income.
+    Profile: Single, €60k revenue, €15k expenses, health insurance.
+    Advisor should note: health insurance fully deductible, pension deductions.
+    """
+
+    def test_self_employed_net_taxed(self):
+        d = _scenario(
+            {
+                "self_employed": {"revenue": 60_000, "expenses": 15_000},
+                "employment": {"gross_salary": 0},
+            }
+        )
+        assert d["zve"] > 0
+        assert d["tarifliche_est"] > 0
+
+    def test_health_insurance_reduces_zve(self):
+        d_no = _scenario(
+            {
+                "self_employed": {"revenue": 60_000, "expenses": 15_000},
+                "employment": {"gross_salary": 0},
+            }
+        )
+        d_with = _scenario(
+            {
+                "self_employed": {"revenue": 60_000, "expenses": 15_000},
+                "employment": {"gross_salary": 0},
+                "special_expenses": {"health_insurance": 4_000},
+            }
+        )
+        assert d_with["zve"] < d_no["zve"]
+        assert d_with["tarifliche_est"] < d_no["tarifliche_est"]
+
+    def test_pension_contribution_reduces_zve(self):
+        d_no = _scenario(
+            {
+                "self_employed": {"revenue": 60_000, "expenses": 15_000},
+            }
+        )
+        d_with = _scenario(
+            {
+                "self_employed": {"revenue": 60_000, "expenses": 15_000},
+                "special_expenses": {"pension_contributions": 10_000},
+            }
+        )
+        assert d_with["zve"] < d_no["zve"]
+
+
+class TestAdvisorScenarioHighEarner:
+    """
+    Scenario 5 — High earner, zone 4.
+    Profile: Single, €120k gross, investment income.
+    Advisor should flag: Soli being paid, large pension deduction opportunity.
+    """
+
+    def test_soli_triggered_at_120k(self):
+        d = _scenario({"employment": {"gross_salary": 120_000}})
+        assert d["solidaritaetszuschlag"] > 0
+
+    def test_pension_deduction_capped_at_30826(self):
+        d_max = _scenario(
+            {
+                "employment": {"gross_salary": 120_000},
+                "special_expenses": {"pension_contributions": 40_000},  # above max
+            }
+        )
+        d_base = _scenario({"employment": {"gross_salary": 120_000}})
+        reduction = d_base["zve"] - d_max["zve"]
+        # Capped at max_pension_deduction_single = 30,826
+        assert reduction <= 30_826 + 72  # generous bound for Pauschale swaps
+
+    def test_flat_tax_on_investments(self):
+        d = _scenario(
+            {
+                "employment": {"gross_salary": 120_000},
+                "investments": {"gross_income": 5_000, "tax_withheld": 0},
+            }
+        )
+        # 25% + Soli on (5000-1000) taxable
+        expected = int((5_000 - 1_000) * 0.25 * 1.055)
+        assert d["capital_tax_flat"] == expected
+
+
+class TestAdvisorScenarioCommuterHomeOffice:
+    """
+    Scenario 6 — Hybrid remote/office worker.
+    Profile: Single, €50k, 15 km commute 100 days, 110 home office days.
+    Tests 2026 Pendlerpauschale (€0.38/km from km 1) and home office pairing.
+    """
+
+    def test_homeoffice_210_beats_pauschale(self):
+        d = _scenario(
+            {
+                "employment": {"gross_salary": 50_000},
+                "deductions": {
+                    "commute_km": 0,
+                    "commute_days": 0,
+                    "home_office_days": 210,
+                },
+            }
+        )
+        # 210 × 6 = 1260 > Pauschale of 1230
+        assert d["werbungskosten_used"] == 1_260
+
+    def test_pendlerpauschale_2026_rate_30km(self):
+        """€0.38/km unified from km 1 — 30 km × 220 days = €2,508."""
+        d = _scenario(
+            {
+                "employment": {"gross_salary": 55_000},
+                "deductions": {
+                    "commute_km": 30,
+                    "commute_days": 220,
+                    "home_office_days": 0,
+                },
+            }
+        )
+        expected = 30 * 220 * 0.38  # 2508.0
+        assert d["werbungskosten_used"] == pytest.approx(expected, abs=2)
+
+    def test_combined_commute_and_homeoffice(self):
+        d = _scenario(
+            {
+                "employment": {"gross_salary": 50_000},
+                "deductions": {
+                    "commute_km": 10,
+                    "commute_days": 100,
+                    "home_office_days": 100,
+                },
+            }
+        )
+        # Commute: 10 × 100 × 0.38 = 380; Home office: 100 × 6 = 600
+        # Total actual WK = 980 < Pauschale 1230 → use Pauschale
+        assert d["werbungskosten_used"] == 1_230
+
+
+class TestAdvisorScenarioRetiredPerson:
+    """
+    Scenario 7 — Retired person (pension income + investments).
+    Profile: Single, €25k pension, €1,500 dividends with over-withheld tax.
+    Advisor should flag: capital tax refund opportunity, low Soli bracket.
+    """
+
+    def test_over_withheld_capital_tax_captured(self):
+        d = _scenario(
+            {
+                "employment": {"gross_salary": 25_000},
+                "investments": {"gross_income": 800, "tax_withheld": 211},
+            }
+        )
+        # Under Sparer-Pauschbetrag (€1,000) → flat tax = 0 but 211 was withheld
+        assert d["capital_tax_withheld"] == 211
+        assert d["capital_tax_flat"] == 0
+
+    def test_no_soli_at_25k(self):
+        d = _scenario({"employment": {"gross_salary": 25_000}})
+        # Income tax should be well below 20,350 threshold → Soli = 0
+        assert d["solidaritaetszuschlag"] == 0
+
+
+class TestAdvisorScenarioMaxDeductions:
+    """
+    Scenario 8 — Fully optimised taxpayer (all major deductions).
+    Profile: Single, €60k, full home office, commute, union fees, insurance,
+    Riester, donations, medical costs.
+    Tests that combining all deductions correctly reduces ZVE and increases refund.
+    """
+
+    def test_all_deductions_reduce_zve_vs_base(self):
+        d_base = _scenario(
+            {"employment": {"gross_salary": 60_000, "lohnsteuer_withheld": 15_000}}
+        )
+        d_opt = _scenario(
+            {
+                "employment": {"gross_salary": 60_000, "lohnsteuer_withheld": 15_000},
+                "deductions": {
+                    "commute_km": 20,
+                    "commute_days": 180,
+                    "home_office_days": 180,
+                    "work_equipment": 1_200,
+                    "work_training": 800,
+                    "union_fees": 420,
+                    "other_work_expenses": 200,
+                },
+                "special_expenses": {
+                    "health_insurance": 3_600,
+                    "long_term_care_insurance": 800,
+                    "pension_contributions": 5_000,
+                    "riester_contributions": 2_100,
+                    "donations": 500,
+                    "medical_costs": 2_000,
+                },
+            }
+        )
+        assert d_opt["zve"] < d_base["zve"]
+        assert d_opt["total_tax"] < d_base["total_tax"]
+        assert d_opt["refund_or_payment"] > d_base["refund_or_payment"]
+
+    def test_union_fees_on_top_of_pauschale(self):
+        """2026 change: union fees deductible ON TOP OF the €1,230 Pauschale."""
+        d_no = _scenario(
+            {"employment": {"gross_salary": 50_000}, "deductions": {"union_fees": 0}}
+        )
+        d_with = _scenario(
+            {"employment": {"gross_salary": 50_000}, "deductions": {"union_fees": 500}}
+        )
+        # Union fees should reduce ZVE by exactly 500
+        assert d_no["zve"] - d_with["zve"] == pytest.approx(500, abs=2)
+
+    def test_optimised_scenario_positive_refund(self):
+        d = _scenario(
+            {
+                "employment": {"gross_salary": 60_000, "lohnsteuer_withheld": 15_000},
+                "deductions": {
+                    "commute_km": 25,
+                    "commute_days": 200,
+                    "home_office_days": 160,
+                    "work_equipment": 1_500,
+                    "union_fees": 420,
+                },
+                "special_expenses": {
+                    "health_insurance": 3_600,
+                    "pension_contributions": 5_000,
+                    "donations": 300,
+                },
+            }
+        )
+        assert d["refund_or_payment"] > 0

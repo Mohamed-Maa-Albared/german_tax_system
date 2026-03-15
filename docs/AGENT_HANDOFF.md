@@ -38,26 +38,33 @@ Every new function in the tax engine (backend or frontend) needs at least one te
 - Bcrypt for passwords. JWT (HS256, 1h expiry) for admin auth.
 - No PII stored server-side.
 - No `dangerouslySetInnerHTML` in React.
+- User inputs are sanitised before being injected into prompts (see `ollama_service.py`).
 
 ### 6. Maintainable code
 - Python files start with `from __future__ import annotations` (Python 3.9 compatibility).
-- Use `Optional[X]` not `X | None` syntax (Python 3.9 doesn't support the latter without the future import).
+- Use `Optional[X]` not `X | None` syntax.
 - One concern per function. No god functions.
-- Field names in Pydantic schemas are snake_case and match the German concepts they represent (e.g., `lohnsteuer_withheld`, not `taxes_withheld`).
+- Field names in Pydantic schemas are snake_case and match German concepts (e.g., `lohnsteuer_withheld`).
+- **Keep functions small and focused.** When adding to `ollama_service.py` or `tax_calculator.py`, consider splitting large functions rather than extending them.
+- **Never add features beyond what's requested.** Keep solutions minimal and focused.
 
 ### 7. Frontend: elegant and practical
 - The logo (`logo.png` / `frontend/public/logo.svg`) must appear in `Layout.tsx` on every page.
 - Label everything in English with German in brackets: "Income Tax (Einkommensteuer)".
-- Progressive disclosure: show fields only when relevant (e.g., church tax only if `is_church_member = true`).
+- Progressive disclosure: show fields only when relevant.
 - Mobile-first. Accessible. No visual clutter.
 - Use the project's color system (navy #1B3A6B, gold #F5A623) — defined in `tailwind.config.ts`.
 
 ### 8. Best practices
-- Handle `Optional` fields with sensible defaults, not nullability explosions.
 - Use `pytest.approx(value, abs=1)` for near-integer monetary assertions.
 - Backend tests use `StaticPool` in-memory SQLite — no file system, no cleanup needed.
 - Frontend component tests use `happy-dom` environment (not jsdom v27 — has ESM conflicts).
 - `reset()` in the Zustand store must restore `taxParams` to `DEFAULT_PARAMS_2026`.
+
+### 9. Document management for this file
+- Keep the "Completed Work" sections current but **trim sessions older than 3 sessions** — move key facts to the "Pitfalls" table instead of keeping full session narratives. The goal is a _usable_ reference, not a log.
+- Keep the "Next Session" section actionable and pruned — completed items must be removed.
+- The "Critical Field Name Reference" and "Common Pitfalls" tables are the most valuable sections — always keep them accurate.
 
 ---
 
@@ -110,15 +117,15 @@ All tax logic traces back to `tax_system.MD` (last verified: March 2026 against 
 
 ## Current State of the Codebase
 
-**Last updated**: March 14, 2026  
-**Session**: 008
+**Last updated**: March 15, 2026  
+**Session**: 009
 
 ### Test status
 | Suite             | Tests | Result        |
 | ----------------- | ----- | ------------- |
-| Backend (pytest)  | 65    | ✅ All passing |
+| Backend (pytest)  | 89    | ✅ All passing |
 | Frontend (vitest) | 58    | ✅ All passing |
-| Total             | 123   | ✅             |
+| Total             | 147   | ✅             |
 
 ### All files present and working
 
@@ -128,36 +135,34 @@ All tax logic traces back to `tax_system.MD` (last verified: March 2026 against 
 - `app/models/tax_parameter.py` — `TaxYearParameter` + `AdminCredential` + `AdminAuditLog` ORM models
 - `app/schemas/tax.py` — `TaxCalculationRequest` + `TaxBreakdownResponse` Pydantic schemas
 - `app/schemas/admin.py` — `AdminLogin`, JWT schemas
-- `app/api/tax.py` — `/api/tax/*` routes
-- `app/api/admin.py` — `/api/admin/*` routes (JWT protected)
-- `app/api/ai.py` — `/api/ai/*` routes (Ollama)
-- `app/services/tax_calculator.py` — §32a EStG calculation engine
-- `app/services/ollama_service.py` — httpx-based Ollama client (NOT aiohttp)
-- `app/services/admin_service.py` — bcrypt + JWT
-- `app/services/parameter_service.py` — DB parameter queries
-- `seed_data.py` — Seeds 2026 parameters + admin password
-- `requirements.txt`
-- `.env.example`
-- `tests/test_backend.py` — 59 tests
+- `app/api/tax.py`, `admin.py`, `ai.py` — all routes
+- `app/services/tax_calculator.py` — §32a EStG engine (union fees now correctly treated as additive to Pauschale)
+- `app/services/ollama_service.py` — AI advisor with comprehensive 2026 tax reference + marginal rate calculator hints
+- `app/services/admin_service.py`, `parameter_service.py`
+- `seed_data.py`, `requirements.txt`, `.env.example`
+- `tests/test_backend.py` — 89 tests (includes 8 comprehensive advisor scenario test classes)
 
 **Frontend** (`frontend/`)
-- `src/lib/taxCalculator.ts` — client-side §32a mirror
-- `src/lib/store.ts` — Zustand wizard state (reset() includes taxParams; `bonusType`/`bonusPercent` added to defaultEmployment)
-- `src/lib/api.ts` — Axios API client
-- `src/lib/utils.ts` — formatting helpers
-- `src/types/tax.ts` — `EmploymentData` now has `bonusType`, `bonusPercent` fields
-- `src/components/Layout.tsx` — header with SVG logo (falls back gracefully), updated footer
-- `src/components/FieldHint.tsx` — inline ℹ tooltip component (explanation + German term + where to find)
-- `src/components/AmountToggle.tsx` — monthly/yearly pill toggle + `useAmountMode()` hook; `toAnnual()` multiplies by 12 when monthly mode
-- `src/components/TaxBreakdown.tsx`
-- `src/components/AIHint.tsx`
-- `src/components/ProgressBar.tsx`
-- `src/components/wizard/PersonalDetails.tsx` — years 2022-2026, multi-year banner, field hints, conditional church/disability fields
-- `src/components/wizard/EmploymentIncome.tsx` — step=1 fix, field hints, bonus % toggle, monthly/yearly toggle
-- `src/components/wizard/OtherIncome.tsx` — step=1 fix, field hints per income type, monthly/yearly toggle
-- `src/components/wizard/Deductions.tsx` — step=1 fix, full field hints, monthly/yearly toggle on € fields only
-- `src/components/wizard/SpecialExpenses.tsx` — step=1 fix, full field hints, monthly/yearly toggle
-- `src/components/wizard/Review.tsx`
+- `src/lib/taxCalculator.ts` — client-side §32a mirror (union fees fix applied)
+- `src/lib/store.ts`, `api.ts`, `utils.ts`, `elsterXml.ts`
+- `src/types/tax.ts` — full type definitions
+- `src/types/html2pdf.d.ts` — ambient types for html2pdf.js
+- `src/components/` — Layout, FieldHint, AmountToggle, TaxBreakdown, AIHint, ProgressBar, all wizard steps
+- `src/pages/LandingPage.tsx`, `TaxWizard.tsx`, `AdminPanel.tsx`
+- `src/pages/Results.tsx` — ELSTER XML guide modal (ℹ️ button), improved disclaimers
+- `src/pages/FilingInstructions.tsx` — FilingTimingGuide component (early/late filing advice), programmatic PDF download via html2pdf.js
+- `src/pages/TaxAdvisor.tsx` — full AI advisor with proposal system
+- `src/test/` — taxCalculator (29), store (19), TaxBreakdown (10)
+- `public/logo.svg`, `index.html`, config files
+
+**Docs** (`docs/`)
+- `ARCHITECTURE.md` — system design, pipeline, schema, API reference
+- `AGENT_HANDOFF.md` — this file
+
+**Root**
+- `logo.png`, `tax_system.MD`, `readme.md`, `competitor_analysis.md`, `tax_system_tips_tricks.md`
+
+---
 - `src/pages/LandingPage.tsx` — full redesign: hero with plain English, "How it works" steps, feature cards, multi-year deadline callout
 - `src/pages/TaxWizard.tsx`
 - `src/pages/Results.tsx` — added "Get Filing Instructions & Summary" primary CTA button
@@ -280,150 +285,88 @@ specialExpenses: { healthInsurance, longTermCareInsurance, pensionContributions,
 
 ---
 
-## Completed Work (Sessions 001 + 002)
+## Completed Work (Summary — Sessions 001–008)
 
-- [x] Project structure
-- [x] `tax_system.MD` — German tax law reference document
-- [x] Architecture documentation (`docs/ARCHITECTURE.md`)
-- [x] Agent handoff documentation (`docs/AGENT_HANDOFF.md`) — this file
-- [x] Backend: FastAPI app, database, all models, all schemas
-- [x] Backend: §32a EStG engine with all 2026 parameters
-- [x] Backend: Ollama service (httpx-based)
-- [x] Backend: Admin CRUD API with JWT
-- [x] Backend: All routes (tax, admin, AI)
-- [x] Backend: 59 passing tests
-- [x] Frontend: React + Vite + TypeScript scaffold
-- [x] Frontend: Tailwind design system (navy/gold tokens)
-- [x] Frontend: Zustand store + client-side tax calculator
-- [x] Frontend: All 6 wizard step components
-- [x] Frontend: Landing page, Results, Admin panel
-- [x] Frontend: 58 passing tests
-- [x] `.env.example` recovered from git checkpoint
-- [x] `frontend/public/logo.svg` recovered from git checkpoint
-- [x] `readme.md` with full setup and API reference
+> Full per-session logs have been trimmed. Key learnings are captured in the "Common Pitfalls" table above.
 
-## Completed Work (Session 003)
+**Core foundation (001–002)**: Full backend (FastAPI, SQLAlchemy, §32a EStG engine, Ollama, Admin JWT, all routes) + frontend (React/Vite/TS, Tailwind, Zustand, all wizard steps, landing page, tests).
 
-- [x] Best-of-both-worlds merge: cloud checkpoint (`6276012`) vs current codebase
-- [x] `tax_calculator.py`: module docstring; §33 Abs.3 full tiered table (GdE 5/6/7% with child/joint reductions); 4 new suggestion rules (health ins, GWG, work training, income hint)
-- [x] `types/tax.ts`: expanded interfaces with new optional fields (`isDisabled`, `disabilityGrade`, `workEquipment`, `workTraining`, `unionFees`, `longTermCareInsurance`, `medicalCosts`); enriched `TaxBreakdown` interface; renamed `aussergewoehnliche_belast` → `aussergewoehnliche_belastungen`
-- [x] `store.ts`: persist middleware added (localStorage key `'smarttax-wizard'`); new field defaults added
-- [x] `taxCalculator.ts`: module docstring; `Math.floor(zve)` fix in §32a tariff zones; underscore numeric separators in `DEFAULT_PARAMS_2026`; §33 full tiered table implementation; new WK fields (workEquipment, workTraining, unionFees); new SA fields (longTermCareInsurance); enriched TaxBreakdown return
-- [x] `TaxBreakdown.tsx`: replaced table layout with rich sectioned layout using `Divider` + `Row` components; kept recharts bar chart and SummaryCard grid
-- [x] `PersonalDetails.tsx`: disability checkbox + grade selector (GdB 0–100)
-- [x] `Deductions.tsx`: Work Equipment, Work Training & Education, Union Fees fields
-- [x] `SpecialExpenses.tsx`: Long-term Care Insurance + Medical Costs §33 AIHint field
-- [x] `TaxBreakdown.test.tsx`: updated label assertions (bilingual format); fixed `aussergewoehnliche_belastungen` field name
-- [x] `docs/ARCHITECTURE.md`: updated for session 003 (§33 section, Key variables table, wizard step table, API response fields)
-- [x] `docs/AGENT_HANDOFF.md`: updated for session 003 (this file)
+**Sessions 003–004**: §33 table, disability types, persist middleware, FieldHint tooltips, bonus % toggle, FilingInstructions page, print CSS, multi-year wizard.
+
+**Sessions 006–007**: AI advisor with qwen3, markdown rendering, admin panel rewrite, §33b disability Pauschbetrag, ELSTER XML export, multi-year comparison, audit log, model persistence.
+
+**Session 008**: AI proposal system with `APPLY:` lines, `ChangeProposal` cards, full user-context system prompt, `num_predict=900`.
 
 ---
 
-## Completed Work (Session 004)
+## Completed Work (Session 009 — March 15, 2026)
 
-- [x] **Bug fix**: `step={100}` on all monetary inputs changed to `step={1}` — browser no longer rejects non-multiple-of-100 values
-- [x] **Bug fix**: Logo in Layout.tsx now uses `<img src="/logo.svg" />` instead of a generic Calculator icon; graceful `onError` fallback
-- [x] **FieldHint component** (`src/components/FieldHint.tsx`): New inline ℹ tooltip with plain-English explanation, German term, and "where to find this" for every field in all 5 wizard steps
-- [x] **Bonus UX**: EmploymentIncome now has "Fixed amount €" vs "% of gross salary" toggle; preview shows resolved € amount when % is selected; resolved bonus stored in `employment.bonus`
-- [x] **Landing page redesign**: Plain English hero (removed "§32a EStG" jargon), "How it works" 3-step section, feature cards with icons, multi-year deadline callout (2022 urgent!)
-- [x] **Multi-year filing**: PersonalDetails year selector expanded 2022–2026; multi-year info banner; per-year deadline shown under selector; 2022 highlighted as urgent (31 Dec 2026)
-- [x] **PersonalDetails UX**: Church tax rate and disability grade inputs are now conditionally shown only when the relevant checkbox is checked (progressive disclosure)
-- [x] **FilingInstructions page** (`src/pages/FilingInstructions.tsx`): Comprehensive filing package page accessible from Results. Shows: full input summary, tax calculation, step-by-step ELSTER filing instructions, expected timeline, multi-year opportunities, optimisation tips. "Save as PDF" button uses `window.print()` with print CSS
-- [x] **Print CSS** (`src/index.css`): `@media print` styles hide nav/footer/interactive elements; ensures document prints cleanly as PDF
-- [x] **Footer updated**: Removed "§32a EStG calculator" jargon, replaced with plain English disclaimer
-- [x] **App.tsx**: Added `/filing` route
-- [x] **Results.tsx**: Primary CTA changed to "Get Filing Instructions & Summary" → navigates to `/filing`
-- [x] TypeScript: 0 errors. Tests: 58/58 passing.
-
----
-
-## Completed Work (Session 006)
-
-- [x] **Model switched to `qwen3:latest`** (8B, 5.2 GB) — significantly smarter than llama3.2 3B; strictly under 10B params; excellent multilingual reasoning; set in `backend/.env`
-- [x] **Dynamic model label in TaxAdvisor** — header badge now reads the model name from `/api/ai/status` on mount instead of hardcoded `"qwen3:14b · local"`
-- [x] **Markdown rendering in AI chat** — installed `react-markdown@10` + `remark-gfm`; assistant messages rendered with `<ReactMarkdown>` using `prose-sm` Tailwind typography; user messages remain plain text
-- [x] **Footer / suggested-questions overlap fixed** — Layout now uses `flex flex-col min-h-screen` so footer is pushed to bottom; sidebar changed from `space-y-4` to `flex flex-col gap-4 overflow-y-auto` so it scrolls independently
-- [x] **Hardcoded model name in error message** — `ollama_service.py` now uses `self.settings.ollama_model` dynamically
-- [x] **Admin: `/api/admin/health`** — DB health, active year, year count, Ollama status — requires auth
-- [x] **Admin: `/api/admin/settings` GET/PUT** — read and update Ollama model/enabled/timeout at runtime (in-memory); PUT validates model name format with regex to prevent injection
-- [x] **Admin: `/api/admin/password` PUT** — change password with current-password verification
-- [x] **Admin: `/api/admin/parameters/{year}` DELETE** — delete non-active year
-- [x] **AI: `/api/ai/models`** — list all locally available Ollama models from `ollama list`
-- [x] **Admin Panel full rewrite** — tabbed UI (Dashboard / Tax Parameters / AI Settings / Security)
-  - **Dashboard**: DB health card, Ollama health card, quick action buttons
-  - **Tax Parameters**: all ~30 params in 8 categorised sections; collapsible per-year; inline edit (click-to-edit); copy/activate/delete year actions; inline notes editor
-  - **AI Settings**: model picker with radio list showing all local models + file size + parameter count; toggle AI on/off; connection details; note about persistence
-  - **Security**: change password form; security checklist (HTTPS, JWT expiry, secret key reminder)
-- [x] **Tailwind Typography plugin** installed; `prose-sm` styles configured for compact chat messages
-- [x] **`app/schemas/admin.py`** — rewritten to Python 3.9–compatible `Optional[X]` syntax; added `PasswordChangeRequest`, `AdminSettingsUpdateRequest`
-- [x] **`src/lib/api.ts`** — added `fetchAiStatus`, `fetchAiModels`, `fetchAdminHealth`, `fetchAdminSettings`, `updateAdminSettings`, `changeAdminPassword`, `deleteYear`, typed interfaces `AdminHealth`, `AdminSettings`, `OllamaModel`, `AiStatus`
-- [x] TypeScript: 0 errors. Frontend tests: 58/58 ✅. Backend imports: ✅
+- [x] **Bug fix — union fees calculator (BOTH backend + frontend)**: Union fees are now deductible ADDITIONALLY to the €1,230 Werbungskosten-Pauschale (§9a EStG 2026 rule). Previously they were incorrectly included in the `max(actual, pauschale)` comparison and therefore "eaten" by the Pauschale. Fixed in `tax_calculator.py` (`calculate_werbungskosten`) and `taxCalculator.ts` (`calcWerbungskosten`). This is a compliance-critical fix.
+- [x] **Advisor system prompt — comprehensive upgrade**:
+  - Full `_TAX_REFERENCE_2026` expanded with: all 10 most-missed deductions, filing timing guidance (early Jan/Feb vs. late), every deduction category with exact amounts and law citations, §33b GdB table, union fees 2026 change note
+  - `_build_chat_system_prompt` now explicitly instructs the advisor to calculate exact savings using the user's marginal rate (formula provided)
+  - Marginal rate automatically computed from user's ZVE and appended to context ("Approximate marginal rate: ~38% — use this for savings calculations")
+- [x] **ELSTER XML — major improvements**:
+  - Rich instructional comment header explaining exactly what the file is, what it is not, and 5-step how-to-use guide (bilingual German/English)
+  - Per-section comments with ELSTER Zeile (form field) numbers and source document references
+  - Fixed typo: `KapitaleinküfteVorAbzug` → now has proper comment context
+  - Added `<!-- NÄCHSTE SCHRITTE / NEXT STEPS -->` closing section with 7-step checklist
+- [x] **ELSTER XML Guide Modal**: ℹ️ button next to "Download ELSTER XML" on Results page. Modal explains: what the file is, 6-step how-to-use, table of all ELSTER forms (Anlage N/S/V/KAP/Kind/etc.) with descriptions.
+- [x] **Tax Filing Information — `FilingTimingGuide` component**: New collapsible section in FilingInstructions showing:
+  - Personalized recommendation banner (file early = refund; wait = payment due)
+  - Early-filing caveat (Jan/Feb): what to do before Lohnsteuerbescheinigung arrives
+  - Self-employment extra guidance (EÜR requirement, extended Steuerberater deadline)
+  - Key dates table with icons: Lohnsteuerbescheinigung due date, earliest filing, mandatory deadline, voluntary deadline
+- [x] **PDF export (programmatic)**: Installed `html2pdf.js` + added `src/types/html2pdf.d.ts` ambient types. FilingInstructions now has "Download PDF" button (async, with loading spinner) using `html2pdf` with `scale: 2` canvas + A4 jsPDF. Falls back to `window.print()` on error. Print button retained separately.
+- [x] **Advisor test scenarios (8 classes, 33 tests)**: Added `TestAdvisorScenarioBasicEmployee`, `Expat`, `FamilyWithChildren`, `Freelancer`, `HighEarner`, `CommuterHomeOffice`, `RetiredPerson`, `MaxDeductions` — each with 3–4 targeted assertions covering the full calculation pipeline with realistic inputs.
+- [x] Backend tests: 65 → 89. All 89 passing ✅. Frontend tests: 58/58 ✅.
 
 ---
 
-## Completed Work (Session 007 + 008)
+## Completed Work (Session 010 — March 15, 2026)
 
-### Session 007 — Core tax + admin improvements
+**AI Advisor — comprehensive fixes and improvements:**
+- [x] **APPLY card regex hardened**: Now case-insensitive (`gim` flags), handles leading whitespace and markdown bold markers (`**APPLY:**`). Also strips partial/trailing APPLY lines during streaming so they never flash to users.
+- [x] **`reason` field added to `ChangeProposal`**: Model now required to output `"reason":"exact quote"` in every APPLY line so users see *why* a value was suggested. Proposal cards display reason in italic below the field name.
+- [x] **"Analyze" button prompt rewritten**: No longer asks for APPLY lines. Instead asks the AI to explain each zero-value deduction and what information the user would need to claim it. This stops generic value-inventing on first load.
+- [x] **System prompt compressed ~60%**: `_TAX_REFERENCE_2026` trimmed from ~200 lines to ~55 lines (kept all key numbers, removed verbose explanations/examples). This reduces token usage per call, allowing more answer budget.
+- [x] **APPLY rules made strictly grounded**: "ONLY output APPLY when user EXPLICITLY stated a specific amount." Old prompt said "never invent" but the model ignored it; new prompt says "if user did not state an amount, NO APPLY line — explain in text only."
+- [x] **`num_predict` raised to 1200**, temperature lowered to 0.3 for more consistent structured output.
 
-- [x] **AI advisor fix (critical)**: `"think": False` was incorrectly placed inside `options` dict. Moved to top-level of Ollama API payload (`payload["think"] = False`) — this is the correct placement for qwen3. Replaced fragile char-by-char `<think>` filter with a reliable buffer+regex approach (`re.sub(r'<think>.*?</think>', ...)`) with a 50KB runaway cap.
-- [x] **§33b EStG Disability Pauschbetrag**: Full implementation:
-  - Lookup table `_DISABILITY_PAUSCHBETRAG` in `tax_calculator.py` (GdB 20→€384 … 100→€2,840, amounts since 2021)
-  - `get_disability_pauschbetrag(grade)` function
-  - Deducted from ZVE when `is_disabled=True` and `disability_grade >= 20`
-  - `disability_pauschbetrag_used` field added to `TaxBreakdown` dataclass, `TaxBreakdownResponse` schema, response construction in `tax.py`
-  - Mirror in `frontend/src/lib/taxCalculator.ts` + `DISABILITY_PAUSCHBETRAG` constant
-  - `disability_pauschbetrag_used?` field added to `TaxBreakdown` type in `types/tax.ts`
-  - 6 new backend tests in `TestDisabilityPauschbetrag` (59 → 65 total)
-- [x] **Persist AI model to .env**: `PUT /api/admin/settings` now writes `OLLAMA_MODEL=<value>` back to `backend/.env` using `pathlib` + `re.sub` line-replacement (survives server restart)
-- [x] **Admin audit log**:
-  - New `AdminAuditLog` SQLAlchemy model in `tax_parameter.py` (append-only: id, timestamp, action, target, old_value, new_value)
-  - Automatic log entries on: `update_parameters`, `activate_year`, `delete_year`, `change_password`, `change_model`
-  - `GET /api/admin/audit-log?limit=50` endpoint (newest first, limit 200)
-  - Frontend: `AuditLogEntry` interface + `fetchAuditLog()` in `api.ts`
-  - Dashboard tab in AdminPanel shows last 20 entries in a styled table (timestamp, action, target, old/new values)
-- [x] **ELSTER XML export**: `frontend/src/lib/elsterXml.ts` — `generateElsterXml()` + `downloadElsterXml()`
-  - Produces structured German XML with Anlage N/S/V/KAP, Sonderausgaben, §33, §33b, Kinderfreibetrag, Berechnung, Ergebnis sections
-  - "Download ELSTER XML" button on Results page
-  - Clear disclaimer: reference document only, not a certified ERiC submission
-- [x] **Multi-year comparison UI**:
-  - `resultsHistory: TaxBreakdown[]` added to Zustand store (persisted, max 5 entries)
-  - `runCalculation()` adds/updates history by year (deduplicates same year)
-  - `reset()` clears history
-  - Results page shows comparison table when ≥ 2 results in history (current year highlighted)
-- [x] **`sparer_pauschbetrag_used?` added to `TaxBreakdown` type** (needed by ELSTER export)
+**Results page — complete redesign:**
+- [x] **Refund hero upgraded**: Gradient background, larger amount, contextual subtitle ("Overpaid via payroll withholding — claim it back by filing your Steuererklärung").
+- [x] **Edit button in header**: Small "Edit inputs" button replaces bulky duplicate navigation.
+- [x] **"Next Steps" section replaces button clutter**: Two primary action cards (📄 Get Filing Package, 🤖 Maximize My Refund) with explanatory text; secondary actions (Download XML, What is XML?, Add year, Start over) grouped visually as smaller links.
 
-### Session 008 — AI Advisor optimization + proposal system
+**TaxBreakdown component — richer visualization:**
+- [x] **Hover tooltips on all 4 summary cards**: Hovering Total Tax, Effective Rate, Marginal Rate, Refund/Due shows a pop-up tooltip explaining the term in plain English (e.g., marginal rate tooltip says "each additional €1,000 deduction saves ~€X").
+- [x] **Income flow waterfall**: New visual (above the chart) showing the progression: Gross income → Deductions (%) → Taxable income (ZVE) → Total tax → Refund. Each row has a proportional bar + hover description. Makes the tax story intuitive at a glance.
 
-- [x] **Optimization-focused system prompt**: Rewrote `_build_chat_system_prompt` intro to make the AI's PRIMARY GOAL maximizing the refund; added detailed `APPLY:` proposal protocol with all 15 supported fields documented
-- [x] **Extended user context**: System prompt now includes ALL deduction and special expense fields (with current values) so the AI can immediately spot zeros and suggest specific amounts the user mentioned in chat
-- [x] **`num_predict` bumped to 900** (was 600) to give AI room for answer + APPLY lines
-- [x] **`ChangeProposal` interface + `FIELD_APPLY` map** in `TaxAdvisor.tsx` — maps 15 field names to the correct store update calls
-- [x] **`parseResponse()` function** — strips `APPLY: {...}` lines from visible text (live during streaming) and parses them into `ChangeProposal[]` after streaming completes
-- [x] **Proposal Accept/Dismiss cards**: after each AI message, any `APPLY:` proposals render as amber cards with "Apply" + dismiss (✕) buttons; on Apply → store field updated + `runCalculation()` called → card turns green showing new refund estimate
-- [x] **"Analyze my taxes for max refund" button**: prominent CTA in sidebar for first visit when user has data; sends a comprehensive optimization audit prompt
-- [x] **Suggested questions always visible**: removed `messages.length === 0` guard; sidebar shows questions throughout the conversation (title changes to "Quick questions" after first message)
-- [x] **Contextual questions**: `buildSuggestedQuestions` now generates more targeted questions (e.g., specifically about €0 fields, current home office days vs max 210, etc.)
-- [x] TypeScript: 0 errors. All 123 tests passing.
+**Competitor analysis:**
+- [x] **Differentiation strategy section added**: 10-item gap table vs. competitors + 10 outside-the-box feature ideas (Tax Twin benchmark, Steuerbescheid reader, Life Event Planner, live marginal-rate dial, bank/email deduction scanner, "File for Me" concierge, Deduction Score™, Open API) + priority roadmap.
+
+**Test results: 89 backend / 58 frontend — all passing ✅**
 
 ---
 
-## Next Session — Planned Work (SESSION_009)
+## Next Session — Planned Work (SESSION_011)
 
-High priority:
-- [ ] Lohnsteuerbescheinigung import: parse employer PDF/XML (key fields only — Bruttoarbeitslohn, einbehaltene Lohnsteuer, Soli, Kirchensteuer) and pre-fill wizard
-- [ ] PDF export: `@react-pdf/renderer` or jspdf + html2canvas for proper PDF generation from FilingInstructions
-- [ ] E2E smoke test: Playwright or Cypress — submit full wizard from browser, verify Results + FilingInstructions render correctly
+**High priority:**
+- [ ] **Lohnsteuerbescheinigung import**: Parse official employer XML (ELSTER LStB format) — key fields: Bruttoarbeitslohn (field 3), Lohnsteuer einbehalten (field 4), Soli (field 6), Kirchensteuer (field 7). Pre-fill wizard employment step on upload.
+- [ ] **Real-time deduction cap indicators in wizard**: Show "€X used of €Y limit" for capped deductions (health insurance, Riester, Rürup, childcare). Visual % bar in the input field.
+- [ ] **E2E smoke test (Playwright)**: Full wizard from browser → results → filing instructions.
 
-Medium priority:
-- [ ] Alembic migrations for zero-downtime DB schema updates (needed when new columns are added)
-- [ ] Receipt OCR + AI categorization
-- [ ] Foreign income (Anlage AUS) fields
+**Medium priority (from competitor analysis):**
+- [ ] **"Tax Twin" benchmark**: Anonymized comparison — "people with similar income got €X on average". Computed from seeded/aggregated data.
+- [ ] **Steuerbescheid reader**: Upload PDF/photo of assessment letter → OCR → compare with our calc → flag discrepancies.
+- [ ] **Alembic migrations** for zero-downtime schema changes.
+- [ ] **Foreign income (Anlage AUS)** fields.
 
-Advanced (future):
-- [ ] ELSTER XML: upgrade from reference export to a closer-to-spec ELSTER/EOP format
-- [ ] Loss carry-forward
-- [ ] Gewerbesteuer for self-employed
-- [ ] Playwright E2E tests
+**Advanced:**
+- [ ] Life Event Tax Planner (marriage, child, freelance — projects next year's tax).
+- [ ] ELSTER XML closer-to-spec ERiC format.
+- [ ] Loss carry-forward module.
+- [ ] Gewerbesteuer for self-employed.
 
 ---
 
@@ -436,5 +379,7 @@ Advanced (future):
    cd backend && venv/bin/python -m pytest tests/test_backend.py --tb=short -q
    cd frontend && npx vitest run
    ```
-4. Check this file's "Next Session" section for planned work
-5. Update this file at the end of the session with what was completed and what comes next
+4. Check "Next Session" above for planned work
+5. Update this file at the end of the session (trim old completed sections, keep pitfalls current)
+
+

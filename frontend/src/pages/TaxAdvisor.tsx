@@ -12,6 +12,7 @@ export interface ChangeProposal {
     field: string
     value: number
     label: string
+    reason?: string          // why the advisor is suggesting this (grounded in user's words)
     saving_estimate?: string
 }
 
@@ -55,20 +56,30 @@ function fmt(v: number) {
 
 /**
  * Strip APPLY: lines from the visible text and parse them into ChangeProposal objects.
+ * Case-insensitive, handles optional leading whitespace and markdown bold.
  * Called both during and after streaming.
  */
 function parseResponse(raw: string): { text: string; proposals: ChangeProposal[] } {
     const proposals: ChangeProposal[] = []
     const text = raw
-        .replace(/^APPLY:\s*(\{[^\n]*\})\s*$/gm, (_match, jsonStr) => {
+        // Match complete APPLY lines: case-insensitive, optional leading whitespace/markdown
+        .replace(/^\s*(?:\*{0,2})APPLY:(?:\*{0,2})\s*(\{[^\n]*\})\s*$/gim, (_match, jsonStr) => {
             try {
-                const p = JSON.parse(jsonStr)
+                const p = JSON.parse(jsonStr.trim())
                 if (p.field && p.value !== undefined && p.label) {
-                    proposals.push({ field: p.field, value: Number(p.value), label: p.label, saving_estimate: p.saving_estimate })
+                    proposals.push({
+                        field: p.field,
+                        value: Number(p.value),
+                        label: p.label,
+                        reason: p.reason,
+                        saving_estimate: p.saving_estimate,
+                    })
                 }
             } catch { /* ignore malformed JSON */ }
             return ''
         })
+        // Hide any trailing incomplete APPLY line (still being streamed)
+        .replace(/\n\s*(?:\*{0,2})APPLY:[^\n]*$/i, '')
         .replace(/\n{3,}/g, '\n\n')
         .trim()
     return { text, proposals }
@@ -307,8 +318,10 @@ export default function TaxAdvisor() {
                     {hasData && messages.length === 0 && (
                         <button
                             onClick={() => sendMessage(
-                                'Please analyze my complete tax situation and identify every opportunity to maximize my refund. ' +
-                                'Point out all missing deductions and give me a prioritized list of changes I should make.'
+                                'Please analyze my complete tax situation. For each deduction I currently have at €0 or missing, ' +
+                                'explain: (1) what it is, (2) roughly how much someone in my situation might save, and (3) what ' +
+                                'information I would need to provide to claim it. ' +
+                                'Do NOT assume specific amounts — just explain the opportunities so I can tell you which ones apply to me.'
                             )}
                             disabled={loading}
                             className="mt-4 w-full flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white text-sm font-medium px-4 py-2.5 rounded-lg transition-colors"
@@ -479,8 +492,16 @@ export default function TaxAdvisor() {
                                                 </div>
                                                 <div className="flex-1 min-w-0">
                                                     <p className={`font-medium ${isApplied ? 'text-green-800' : 'text-amber-800'}`}>
-                                                        {isApplied ? '✓ Applied to your calculator' : proposal.label}
+                                                        {isApplied
+                                                            ? `✓ ${proposal.label} updated in calculator`
+                                                            : `Update: ${proposal.label} → ${proposal.value}`
+                                                        }
                                                     </p>
+                                                    {proposal.reason && !isApplied && (
+                                                        <p className="text-xs text-amber-700 mt-0.5 italic">
+                                                            Why: {proposal.reason}
+                                                        </p>
+                                                    )}
                                                     {proposal.saving_estimate && !isApplied && (
                                                         <p className="text-amber-600 text-xs mt-0.5">
                                                             Estimated saving: {proposal.saving_estimate}
@@ -488,7 +509,8 @@ export default function TaxAdvisor() {
                                                     )}
                                                     {isApplied && result && (
                                                         <p className="text-green-600 text-xs mt-0.5">
-                                                            New estimate: {result.refund_or_payment >= 0 ? '+' : ''}{fmt(result.refund_or_payment)}
+                                                            New refund estimate: {result.refund_or_payment >= 0 ? '+' : ''}{fmt(result.refund_or_payment)}
+                                                            {proposal.saving_estimate && ` (${proposal.saving_estimate} saved)`}
                                                         </p>
                                                     )}
                                                 </div>
@@ -503,7 +525,7 @@ export default function TaxAdvisor() {
                                                         <button
                                                             onClick={() => handleDismissProposal(msg.id, idx)}
                                                             className="text-gray-400 hover:text-gray-600 transition-colors p-1"
-                                                            title="Dismiss"
+                                                            title="Not relevant to me"
                                                         >
                                                             <X size={14} />
                                                         </button>

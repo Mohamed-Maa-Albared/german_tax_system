@@ -101,18 +101,20 @@ function calculateKirchensteuer(
     return Math.floor(tax * rate)
 }
 
+/**
+ * Calculate total Werbungskosten (§9 EStG).
+ * 2026 §9a EStG rule: Gewerkschaftsbeiträge (union fees) are deductible
+ * ADDITIONALLY to the Werbungskosten-Pauschale — never eaten by the Pauschale.
+ */
 function calcWerbungskosten(d: DeductionsData, p: TaxYearParameters): number {
     const commute = d.commuteKm * d.commuteDays * p.pendlerpauschale_per_km
     const days = Math.min(d.homeOfficeDays, p.homeoffice_max_days)
     const homeOffice = days * p.homeoffice_per_day
-    return (
-        commute
-        + homeOffice
-        + d.otherWorkExpenses
-        + (d.workEquipment ?? 0)
-        + (d.workTraining ?? 0)
-        + (d.unionFees ?? 0)
-    )
+    // Base deductions (compared against Pauschale)
+    const baseActual = commute + homeOffice + d.otherWorkExpenses + (d.workEquipment ?? 0) + (d.workTraining ?? 0)
+    const wkBase = Math.max(baseActual, p.werbungskosten_pauschale)
+    // Union fees always added on top of the Pauschale floor
+    return wkBase + (d.unionFees ?? 0)
 }
 
 function calcSonderausgaben(
@@ -240,9 +242,9 @@ export function calculateTax(
     const rentalNet = Math.max(0, otherIncome.rentalIncome - otherIncome.rentalExpenses)
     const grossIncome = employment.grossSalary + employment.bonus + selfEmployedNet + rentalNet
 
-    // 2. Werbungskosten (now includes work equipment, training, union fees)
-    const actualWerbungskosten = calcWerbungskosten(deductions, p)
-    const werbungskostenUsed = Math.max(actualWerbungskosten, p.werbungskosten_pauschale)
+    // 2. Werbungskosten (2026: union fees on top of Pauschale — see calcWerbungskosten)
+    const werbungskostenUsed = calcWerbungskosten(deductions, p)
+    const actualWerbungskosten = werbungskostenUsed
 
     // 3. Gesamtbetrag der Einkünfte (progressive base)
     const gesamtbetrag = Math.max(0, grossIncome - werbungskostenUsed)

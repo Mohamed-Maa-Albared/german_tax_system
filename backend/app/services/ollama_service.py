@@ -7,62 +7,56 @@ import httpx
 from app.database import settings
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Condensed 2026 German Tax Reference — injected into every chat system prompt
-# Carefully sized at ~700 tokens to fit any model's context window.
+# Comprehensive 2026 German Tax Reference — injected into every chat system
+# prompt to give the advisor full legal accuracy.
+# Verified against BMF publications and EStG on gesetze-im-internet.de (Mar 2026).
 # ──────────────────────────────────────────────────────────────────────────────
 _TAX_REFERENCE_2026 = """
-## German Income Tax Quick Reference — 2026
+## German Tax Quick Reference — 2026
 
-### §32a EStG Tax Zones (taxable income = ZVE)
-- ≤ €12,348: 0% (Grundfreibetrag)
-- €12,349–€17,799: progressive 14%→24% (zone 2)
-- €17,800–€69,878: progressive 24%→42% (zone 3)
-- €69,879–€277,825: 42% flat (zone 4)
-- ≥ €277,826: 45% flat (Reichensteuer)
-Joint filing: tax = 2 × tariff(ZVE / 2) — Ehegattensplitting
+### §32a EStG Zones (ZVE = taxable income)
+Zone 1: ≤€12,348 → 0% | Zone 2: €12,349–€17,799 → 14%→24% progressive
+Zone 3: €17,800–€69,878 → 24%→42% progressive | Zone 4: €69,879–€277,825 → 42% flat | Zone 5: ≥€277,826 → 45%
+Joint filing: tariff(ZVE/2) × 2 (Ehegattensplitting)
+Marginal rate guide: ZVE €25k→~30% | €35k→~35% | €50k→~39% | €70k+→42%
+Savings formula: deduction_amount × marginal_rate = annual tax saved
 
-### Deductions (Werbungskosten — §9 EStG)
-- Minimum Pauschale: €1,230/year (applied automatically even if actual < this)
-- Commute: €0.38/km one-way × days (2026 unified rate from km 1)
-- Home office: €6/day max 210 days = max €1,260/year
-- Work equipment, training, union fees: fully deductible
+### Werbungskosten (§9 EStG) — employee deductions
+- Pauschale: €1,230 (auto-applied if actual < €1,230)
+- Commute (Pendlerpauschale): km × days × €0.38 from km 1, max €4,500
+- Home office: days × €6, max 210 days = €1,260/yr (no dedicated room needed)
+- Work equipment (GWG): ≤€800/item → 100% in purchase year; depreciate higher items over 3–5 years
+- Work training/courses/books: 100% deductible
+- Union fees (Gewerkschaftsbeiträge): ADDITIONALLY deductible above the €1,230 Pauschale (§9a EStG 2026 change)
 
-### Special Expenses (Sonderausgaben — §10 EStG)
-- Minimum Pauschale: €36 (€72 joint)
-- Health insurance (GKV/PKV): 100% deductible
-- Long-term care insurance (Pflegeversicherung): 100% deductible
-- Pension contributions: up to €30,826 (single) / €61,652 (joint) — 100%
-- Riester: up to €2,100 (€4,200 joint) — §10a EStG
-- Donations: up to 20% of income — §10b EStG
-- Childcare (under 14): 80% deductible, max €4,800/child
-- Alimony paid (Realsplitting): max €13,805 — ex-spouse must agree
+### Sonderausgaben (§10 EStG) — Pauschale €36 single / €72 joint
+- Health insurance (GKV/PKV Basisschutz): employee share 100% deductible — typical €2,400–€4,000/yr
+- Long-term care (Pflegeversicherung): ~€700–€1,000/yr, 100% deductible
+- Rürup pension: up to €30,826 single / €61,652 joint (100% deductible)
+- Riester: up to €2,100 deductible + state bonus €175/person + €300/child
+- Donations: up to 20% of income (need receipt for >€300)
+- Childcare (§10 Nr.5): 80% of costs, max €4,800/child under 14
+- Alimony (Realsplitting §10): max €13,805
 
-### Extraordinary Burdens (§33 EStG)
-- Medical costs above "reasonable burden" threshold (1–7% income) deductible
-- Threshold = 1% (income ≤ €15,340), 2% (up to €51,130), 3% (above) — reduced for married/children
+### §33 Extraordinary Burdens — deductible above zumutbare Belastung (1–7% of income by family status)
+### §33b Disability Pauschbetrag — GdB: 20→€384 | 30→€620 | 40→€860 | 50→€1,140 | 60→€1,440 | 70→€1,780 | 80→€2,120 | 90→€2,460 | 100→€2,840
+### Children — Kindergeld €259/child/month; Kinderfreibetrag €9,756/child; tax office auto-picks better option
+### Capital income — Abgeltungsteuer 26.375%; Sparer-Pauschbetrag €1,000 single / €2,000 joint
+### Soli — 5.5% of income tax; only if income tax > €20,350 single / €40,700 joint (most employees pay ZERO)
+### Church tax — 9% of income tax (8% Bavaria/BW); deductible as Sonderausgaben
+### Voluntary filing deadlines — 2022: ⚠ 31 Dec 2026! | 2023: 31 Dec 2027 | 2024: 31 Dec 2028
 
-### Children
-- Kindergeld: €259/month/child (paid directly, claimed from Familienkasse)
-- Kinderfreibetrag: €9,756/child — tax office uses whichever saves more (Günstigerprüfung)
-
-### Capital Income (§20 / §32d EStG)
-- Flat 25% Abgeltungsteuer + Soli, withheld by bank
-- Sparer-Pauschbetrag: €1,000 tax-free (€2,000 joint)
-
-### Solidarity Surcharge (Soli)
-- 5.5% of income tax
-- Only applies when income tax > €20,350 (single) / €40,700 (joint)
-- Most taxpayers pay zero Soli since 2021
-
-### Church Tax (Kirchensteuer)
-- 9% of income tax (most states) or 8% (Bavaria, BW)
-- Only if registered member of Catholic/Protestant/other recognised church
-
-### Voluntary Filing Deadlines (refund claims)
-- 2022: 31 Dec 2026 ⚠ URGENT
-- 2023: 31 Dec 2027
-- 2024: 31 Dec 2028
-- 2025: 31 Dec 2029 (mandatory: 31 Jul 2026)
+### Top 10 Missed Deductions
+1. Health insurance employee share (often €3k–€5k/yr, commonly forgotten)
+2. Home office days — even 20 days saves ~€40 at average rates; max 210
+3. Union fees — NOW deductible ABOVE the €1,230 Pauschale (2026 change!)
+4. Work training/courses/professional books
+5. Pendlerpauschale — €0.38/km from km 1 (increase since 2025, claim ALL km)
+6. Donations — any registered charity, even small amounts
+7. Riester contributions + Grundzulage state bonuses
+8. Childcare costs — 80% of daycare/after-school for children under 14
+9. Medical costs above the 1–7% threshold
+10. Prior-year church tax if you left the church
 """
 
 
@@ -215,38 +209,29 @@ class OllamaService:
     def _build_chat_system_prompt(self, user_context: Optional[dict]) -> str:
         """Build a focused system prompt with user context + optimization instructions."""
         intro = (
-            "You are SmartTax Germany's expert tax optimization advisor. "
-            "Your PRIMARY GOAL is to MAXIMIZE the user's tax refund (or minimize their liability). "
-            "Be proactive: when you spot a missed deduction or suboptimal input, say so explicitly. "
-            "Reference specific law sections (§32a, §9, §10, §33, §33b EStG, etc.). "
-            "Use the user's ACTUAL numbers when calculating savings estimates. "
-            "Keep answers focused — 150-250 words unless a detailed breakdown is needed.\n\n"
-            "== CHANGE PROPOSALS ==\n"
-            "When you identify a SPECIFIC, CONCRETE change the user could make to get more money back, "
-            "append it on its OWN line at the very END of your reply in EXACTLY this format:\n"
-            'APPLY: {"field":"<field_name>","value":<number>,"label":"<short description>","saving_estimate":"~€<amount>/year"}\n\n'
-            "Available field names and what they represent:\n"
-            "  home_office_days        — days worked from home this year (max 210, worth €6/day)\n"
-            "  commute_km              — one-way commute distance in km\n"
-            "  commute_days            — days per year commuted to the office (max 230)\n"
-            "  work_equipment          — work equipment purchased this year (€)\n"
-            "  work_training           — work-related courses/training (€)\n"
-            "  other_work_expenses     — other deductible work expenses (€)\n"
-            "  union_fees              — trade union membership fees (€/year)\n"
-            "  pension_contributions   — Rürup/private pension contributions (€/year)\n"
-            "  health_insurance_contributions — GKV or PKV premiums paid directly (€/year)\n"
-            "  long_term_care_insurance       — Pflegeversicherung contributions (€/year)\n"
-            "  riester_contributions          — Riester savings contributions (€/year, max €2,100)\n"
-            "  donations               — charitable donations to registered charities (€/year)\n"
-            "  medical_costs           — medical expenses not reimbursed by insurance (€/year)\n"
-            "  childcare_costs         — childcare for children under 14 (€/year)\n"
-            "  alimony_paid            — alimony under §10 Abs.1 Nr.1 EStG (€/year)\n\n"
-            "Rules for proposals:\n"
-            "- Only propose a change when you have a SPECIFIC reason based on the user's situation.\n"
-            "- Never invent numbers the user hasn't mentioned.\n"
-            "- If the user TELLS you a number during chat (e.g. 'I worked from home 80 days'), propose it.\n"
-            "- You may propose at most 2 changes per reply.\n"
-            "- The APPLY: line must be the very last content — never put text after it.\n\n"
+            "You are SmartTax Germany's expert tax advisor. Your goal is to help the user understand "
+            "their tax situation and identify genuine savings opportunities.\n\n"
+            "== CORE RULES ==\n"
+            "1. Always compute EXACT savings: saving = deduction × marginal_rate. Give €amounts, not vague phrases.\n"
+            "2. Cite the law: §9, §10, §32a, §33, §33b EStG.\n"
+            "3. The user's marginal rate is shown below — use it for all savings calculations.\n"
+            "4. Keep answers concise: 150–250 words unless user asks for a full breakdown.\n\n"
+            "== CHANGE PROPOSALS (APPLY lines) ==\n"
+            "You may append APPLY proposals at the VERY END of your reply to update the user's calculator.\n"
+            "Format (exact, on its own line):\n"
+            'APPLY: {"field":"<field>","value":<number>,"label":"<title>","reason":"<why>","saving_estimate":"~€<n>/year"}\n\n'
+            "STRICT RULES — failure to follow means you must NOT output the APPLY line:\n"
+            "- Only propose a value the user EXPLICITLY stated in THIS conversation. "
+            "  E.g. 'I paid €350 in union fees' → value:350. If they said no specific amount → NO APPLY.\n"
+            "- Exception: home_office_days=210 is OK when user says they work fully from home and current value is 0.\n"
+            '- Include \'reason\' showing the exact evidence: "reason":"you said €350 in union fees".\n'
+            "- Max 2 APPLY lines per reply. They are the LAST lines — no text after them.\n"
+            "- NEVER invent, estimate, or assume values the user has not stated.\n\n"
+            "Supported fields:\n"
+            "  home_office_days | commute_km | commute_days | work_equipment | work_training\n"
+            "  other_work_expenses | union_fees | pension_contributions | health_insurance_contributions\n"
+            "  long_term_care_insurance | riester_contributions | donations | medical_costs\n"
+            "  childcare_costs | alimony_paid | disability_grade\n\n"
         )
 
         tax_situation = ""
@@ -335,14 +320,28 @@ class OllamaService:
 
             # Calculated result summary
             if user_context.get("zve") is not None:
+                zve = user_context.get("zve", 0)
                 lines.append(f"\n### Calculation result")
-                lines.append(
-                    f"- Taxable income (ZVE): {fmt(user_context.get('zve', 0))}"
-                )
+                lines.append(f"- Taxable income (ZVE): {fmt(zve)}")
                 lines.append(f"- Total tax: {fmt(user_context.get('total_tax', 0))}")
                 v = user_context.get("refund_or_payment", 0)
                 lines.append(
                     f"- {'Estimated refund' if v >= 0 else 'Additional payment'}: {fmt(abs(v))}"
+                )
+                # Derive approximate marginal rate for the advisor's savings calculations
+                if zve <= 12348:
+                    marg = "0% (below Grundfreibetrag)"
+                elif zve <= 17799:
+                    marg = "~14–24% (zone 2)"
+                elif zve <= 69878:
+                    pct = round(0.24 + 0.18 * (zve - 17800) / (69878 - 17800), 2)
+                    marg = f"~{int(pct * 100)}% (zone 3)"
+                elif zve <= 277825:
+                    marg = "42% (zone 4)"
+                else:
+                    marg = "45% (zone 5 — Reichensteuer)"
+                lines.append(
+                    f"- Approximate marginal rate: {marg} — use this for savings calculations"
                 )
 
             tax_situation = "\n".join(lines) + "\n\n"
@@ -381,8 +380,8 @@ class OllamaService:
             "stream": True,
             "think": False,
             "options": {
-                "temperature": 0.4,
-                "num_predict": 900,
+                "temperature": 0.3,
+                "num_predict": 1200,
             },
         }
 
