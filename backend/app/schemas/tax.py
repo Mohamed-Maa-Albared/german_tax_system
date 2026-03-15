@@ -31,6 +31,16 @@ class SelfEmployedInputSchema(BaseModel):
 class InvestmentInputSchema(BaseModel):
     gross_income: float = Field(0.0, ge=0)
     tax_withheld: float = Field(0.0, ge=0)
+    fund_type: str = Field(
+        "standard",
+        pattern="^(standard|equity_etf|mixed_fund|real_estate_fund|bond_fund)$",
+        description="InvStG fund type — determines Teilfreistellungsquote",
+    )
+    vorabpauschale: float = Field(
+        0.0,
+        ge=0,
+        description="Vorabpauschale already withheld by broker during the year (§18 InvStG)",
+    )
 
 
 class RentalInputSchema(BaseModel):
@@ -46,6 +56,11 @@ class DeductionsInputSchema(BaseModel):
     work_training: float = Field(0.0, ge=0)
     other_work_expenses: float = Field(0.0, ge=0)
     union_fees: float = Field(0.0, ge=0)
+    loss_carry_forward: float = Field(
+        0.0,
+        ge=0,
+        description="§10d EStG Verlustvortrag — losses carried forward from prior years",
+    )
 
 
 class SpecialExpensesInputSchema(BaseModel):
@@ -93,6 +108,7 @@ class TaxBreakdownResponse(BaseModel):
     total_tax: float
     capital_tax_flat: float
     sparer_pauschbetrag_used: float
+    teilfreistellung_applied: float
     lohnsteuer_withheld: float
     soli_withheld: float
     kirchensteuer_withheld: float

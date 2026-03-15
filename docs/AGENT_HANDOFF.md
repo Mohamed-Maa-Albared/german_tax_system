@@ -87,6 +87,8 @@ All tax logic traces back to `tax_system.MD` (last verified: March 2026 against 
 | Kinderfreibetrag vs Kindergeld (Günstigerprüfung)       | ✅      | §32 EStG                 |
 | Sparer-Pauschbetrag €1,000                              | ✅      | §20 EStG                 |
 | Abgeltungsteuer 25% + Soli on investments               | ✅      | §32d EStG                |
+| ETF Teilfreistellung (equity 30%, mixed 15%, RE 60%)    | ✅      | §20/21 InvStG 2018       |
+| Vorabpauschale field (informational; §18 InvStG)        | ✅      | §18 InvStG               |
 | Pension deductions (up to €30,826 single/€61,652 joint) | ✅      | §10 EStG 2026            |
 | Alimony (Realsplitting) max €13,805                     | ✅      | §10 EStG                 |
 | Childcare 80% of costs, max €4,800/child                | ✅      | §10 EStG                 |
@@ -105,27 +107,28 @@ All tax logic traces back to `tax_system.MD` (last verified: March 2026 against 
 - **Grundfreibetrag**: €12,348.
 
 ### Not yet implemented (planned for future sessions)
-- Lohnsteuerbescheinigung PDF/XML import
 - Foreign income / double-tax treaty handling (Anlage AUS)
-- Loss carry-forward
 - Trade tax (Gewerbesteuer) for businesses
 - VAT / Umsatzsteuer (self-employed with turnover >€25,000)
-- Alembic migrations for zero-downtime schema changes
 - Playwright E2E tests
+- "Tax Twin" benchmark — static averages implemented (session 012); real user cohort data still future
+- Steuerbescheid reader (requires OCR/PDF parsing pipeline)
+- Life Event Tax Planner
+- ELSTER ERiC format (Windows/Linux SDK only, no macOS dev)
 
 ---
 
 ## Current State of the Codebase
 
 **Last updated**: March 15, 2026  
-**Session**: 009
+**Session**: 012
 
 ### Test status
 | Suite             | Tests | Result        |
 | ----------------- | ----- | ------------- |
-| Backend (pytest)  | 89    | ✅ All passing |
-| Frontend (vitest) | 58    | ✅ All passing |
-| Total             | 147   | ✅             |
+| Backend (pytest)  | 105   | ✅ All passing |
+| Frontend (vitest) | 64    | ✅ All passing |
+| Total             | 169   | ✅             |
 
 ### All files present and working
 
@@ -216,11 +219,11 @@ This is the most common source of bugs. Memorize or check here before writing te
 
 ```
 employment:      gross_salary, lohnsteuer_withheld, soli_withheld, kirchensteuer_withheld
-investments:     gross_income, tax_withheld                     ← key is "investments" (not "investment")
-self_employed:   revenue, expenses                              ← no null, just defaults to zero
+investments:     gross_income, tax_withheld, fund_type, vorabpauschale   ← key is "investments"
+self_employed:   revenue, expenses
 rental:          gross_income, expenses
 deductions:      commute_km, commute_days, home_office_days, work_equipment, work_training,
-                 other_work_expenses, union_fees
+                 other_work_expenses, union_fees, loss_carry_forward
 special_expenses:health_insurance, long_term_care_insurance, pension_contributions,
                  riester_contributions, donations, childcare_costs, alimony_paid,
                  church_fees_paid, medical_costs
@@ -229,12 +232,13 @@ special_expenses:health_insurance, long_term_care_insurance, pension_contributio
 ### Backend API response fields
 
 ```
-effective_rate_percent   ← percentage (e.g. 22.4), NOT decimal
-marginal_rate_percent    ← percentage (e.g. 42.0), NOT decimal
-capital_tax_withheld     ← withheld capital tax (not capital_tax_due)
+effective_rate_percent     ← percentage (e.g. 22.4), NOT decimal
+marginal_rate_percent      ← percentage (e.g. 42.0), NOT decimal
+capital_tax_withheld       ← withheld capital tax
+teilfreistellung_applied   ← InvStG exempt amount (new in session 011)
 lohnsteuer_withheld, soli_withheld, kirchensteuer_withheld  ← echoed from request
-total_withheld           ← sum of all withheld taxes
-refund_or_payment        ← positive = refund
+total_withheld             ← sum of all withheld taxes
+refund_or_payment          ← positive = refund
 ```
 
 ### Frontend taxCalculator.ts return fields
@@ -247,13 +251,15 @@ marginal_rate            ← decimal (e.g. 0.42)   ← DIFFERENT from backend
 ### Frontend Zustand store field names (camelCase)
 
 ```
-employment: { grossSalary, taxesWithheld, bonus }
+employment: { grossSalary, taxesWithheld, bonus, soliWithheld, kirchensteuerWithheld,
+              hasSalaryChange, salaryPeriods: [{months, monthlyGross}] }
 personal:   { isMarried, numChildren, isChurchMember, churchTaxRateType,
               isFullYearResident, isDisabled, disabilityGrade }
 otherIncome:{ dividends, capitalGains, capitalTaxesWithheld,
-              selfEmployedRevenue, selfEmployedExpenses, rentalIncome, rentalExpenses }
+              selfEmployedRevenue, selfEmployedExpenses, rentalIncome, rentalExpenses,
+              fundType, vorabpauschale }
 deductions: { commuteKm, commuteDays, homeOfficeDays, otherWorkExpenses,
-              workEquipment, workTraining, unionFees }
+              workEquipment, workTraining, unionFees, lossCarryForward }
 specialExpenses: { healthInsurance, longTermCareInsurance, pensionContributions,
                    riesterContributions, donations, childcareCosts, alimonyPaid,
                    churchFeesPaid, medicalCosts }
@@ -265,23 +271,29 @@ specialExpenses: { healthInsurance, longTermCareInsurance, pensionContributions,
 
 ## Common Pitfalls (Learned the Hard Way)
 
-| Pitfall                                                    | Fix                                                                                              |
-| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| `self_employed: null` or `rental: null` in API payload     | Omit key entirely — schema uses default empty objects                                            |
-| `stores.reset()` doesn't restore taxParams                 | reset() must include `taxParams: DEFAULT_PARAMS_2026`                                            |
-| TaxBreakdown.test.tsx fails with `document is not defined` | Add `// @vitest-environment happy-dom` at top of file                                            |
-| `aiohttp` not available                                    | Use `httpx.AsyncClient` in ollama_service.py                                                     |
-| `create_file` on existing file fails                       | Use `replace_string_in_file` instead                                                             |
-| Rate assertions with exact floats fail                     | Use `pytest.approx(42.0, abs=1.0)` for marginal rates                                            |
-| `commute_days: 220` in test default payload                | Use `0` — 220 adds significant Werbungskosten, skewing refund tests                              |
-| `aussergewoehnliche_belast` field name in tests/code       | WRONG — use `aussergewoehnliche_belastungen` (fixed in session 003)                              |
-| `Math.floor(zve)` missing in frontend tariff zones         | Must be present — was added session 003, do NOT remove it                                        |
-| Zustand store state after hard refresh                     | persist middleware active — key `'smarttax-wizard'` in localStorage                              |
-| `disabilityGrade` in store without `isDisabled: true`      | §33b allowance not yet calculated — data captured, future session                                |
-| pydantic v1 style `class Config` in Settings               | Raises DeprecatedSince20 warning — harmless for now (Python 3.9)                                 |
-| `react-markdown` v10 requires ESM                          | Vite handles ESM natively — no vitest config change needed (TaxAdvisor not unit-tested)          |
-| `APPLY:` proposal lines visible during streaming           | `parseResponse()` strips them live via `String.replace` on each chunk — they never flash to user |
-| `think: False` inside `options` for qwen3                  | WRONG — must be top-level key in the Ollama `/api/chat` payload, not nested in `options`         |
+| Pitfall                                                      | Fix                                                                                                                                                                                           |
+| ------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `self_employed: null` or `rental: null` in API payload       | Omit key entirely — schema uses default empty objects                                                                                                                                         |
+| `stores.reset()` doesn't restore taxParams                   | reset() must include `taxParams: DEFAULT_PARAMS_2026`                                                                                                                                         |
+| TaxBreakdown.test.tsx fails with `document is not defined`   | Add `// @vitest-environment happy-dom` at top of file                                                                                                                                         |
+| `aiohttp` not available                                      | Use `httpx.AsyncClient` in ollama_service.py                                                                                                                                                  |
+| `create_file` on existing file fails                         | Use `replace_string_in_file` instead                                                                                                                                                          |
+| Rate assertions with exact floats fail                       | Use `pytest.approx(42.0, abs=1.0)` for marginal rates                                                                                                                                         |
+| `commute_days: 220` in test default payload                  | Use `0` — 220 adds significant Werbungskosten, skewing refund tests                                                                                                                           |
+| `aussergewoehnliche_belast` field name in tests/code         | WRONG — use `aussergewoehnliche_belastungen` (fixed in session 003)                                                                                                                           |
+| `Math.floor(zve)` missing in frontend tariff zones           | Must be present — was added session 003, do NOT remove it                                                                                                                                     |
+| Zustand store state after hard refresh                       | persist middleware active — key `'smarttax-wizard'` in localStorage                                                                                                                           |
+| `disabilityGrade` in store without `isDisabled: true`        | §33b allowance not yet calculated — data captured, future session                                                                                                                             |
+| pydantic v1 style `class Config` in Settings                 | Raises DeprecatedSince20 warning — harmless for now (Python 3.9)                                                                                                                              |
+| `react-markdown` v10 requires ESM                            | Vite handles ESM natively — no vitest config change needed (TaxAdvisor not unit-tested)                                                                                                       |
+| `APPLY:` proposal lines visible during streaming             | `parseResponse()` strips them live via `String.replace` on each chunk — they never flash to user                                                                                              |
+| `think: False` inside `options` for qwen3                    | WRONG — must be top-level key in the Ollama `/api/chat` payload, not nested in `options`                                                                                                      |
+| `fund_type` default for investments                          | Always send `\"standard\"` explicitly when testing non-ETF income to avoid skewing cap checks                                                                                                 |
+| `calculate_capital_tax` now returns 3-tuple                  | Unpack as `capital_tax_due, sparer_used, exempt = calculate_capital_tax(...)`                                                                                                                 |
+| `LStBImport` reads file as `ISO-8859-15`                     | ELSTER XML files use ISO-8859-15 encoding — do NOT use UTF-8 or you'll get garbled Umlauts                                                                                                    |
+| `salaryPeriods` months must sum to 12                        | Otherwise annual gross is wrong; UI shows a warning but doesn't block submission                                                                                                              |
+| Alembic `env.py` needs `sys.path` setup                      | `sys.path.insert(0, ...)` must come before importing `app.database` in `alembic/env.py`                                                                                                       |
+| `valueAsNumber: true` + empty input → `NaN`, not `undefined` | `NaN ?? 0 === NaN` — nullish coalescing does NOT guard NaN. Use `\|\| 0` in `onSubmit` for all optional numeric fields. Apply to both the form handler and the calculator (defence in depth). |
 
 ---
 
@@ -349,25 +361,113 @@ specialExpenses: { healthInsurance, longTermCareInsurance, pensionContributions,
 
 ---
 
-## Next Session — Planned Work (SESSION_011)
+## Completed Work (Session 011 — March 15, 2026)
 
-**High priority:**
-- [ ] **Lohnsteuerbescheinigung import**: Parse official employer XML (ELSTER LStB format) — key fields: Bruttoarbeitslohn (field 3), Lohnsteuer einbehalten (field 4), Soli (field 6), Kirchensteuer (field 7). Pre-fill wizard employment step on upload.
-- [ ] **Real-time deduction cap indicators in wizard**: Show "€X used of €Y limit" for capped deductions (health insurance, Riester, Rürup, childcare). Visual % bar in the input field.
-- [ ] **E2E smoke test (Playwright)**: Full wizard from browser → results → filing instructions.
+- [x] **ETF Taxation — Teilfreistellung (Segment A, backend + frontend)**:
+  - Added `fund_type` (`standard|equity_etf|mixed_fund|real_estate_fund|bond_fund`) and `vorabpauschale` to `InvestmentInputSchema` and `InvestmentInput` dataclass
+  - Added `_TEILFREISTELLUNG_RATES` dict to `tax_calculator.py`. `calculate_capital_tax()` now applies the rate before the 25% Abgeltungsteuer: equity ETF 30% exempt, mixed fund 15%, real estate fund 60%, standard 0%
+  - `TaxBreakdown` dataclass + `TaxBreakdownResponse` schema: new field `teilfreistellung_applied`
+  - `tax.py` API route: passes `fund_type`/`vorabpauschale` through, returns `teilfreistellung_applied`
+  - Frontend: `OtherIncomeData` → `fundType`, `vorabpauschale`; `taxCalculator.ts` → `TEILFREISTELLUNG_RATES`; `OtherIncome.tsx` → fund type dropdown + vorabpauschale input field
+  - 8 new ETF tests in `TestETFTeilfreistellung` — all passing ✅
+
+- [x] **Salary Changes During the Year (Segment B, frontend)**:
+  - `EmploymentData` gets `hasSalaryChange: boolean` and `salaryPeriods: SalaryPeriod[]` (new `SalaryPeriod` interface)
+  - `EmploymentIncome.tsx` wizard step: toggle switch "My salary changed this year" expands to period rows using `useFieldArray`. Each row = months + monthly gross. Annual gross computed as sum of `months × monthlyGross`. Warning shown if months total ≠ 12
+  - No backend change needed — backend always receives total annual gross
+
+- [x] **Lohnsteuerbescheinigung XML Import (Segment C)**:
+  - New component `frontend/src/components/LStBImport.tsx`
+  - Browser-side `DOMParser` (zero dependencies) — handles both ELSTER attribute format (`<Zeile Nr="3" Betrag="..."/>`) and child-element format
+  - Reads file as ISO-8859-15 (correct ELSTER encoding for Umlauts)
+  - Field mapping: Nr 3 → grossSalary, Nr 4 → taxesWithheld, Nr 5 → soliWithheld, Nr 6+7 → kirchensteuerWithheld
+  - File size guard (2 MB), type check (.xml only), parsererror detection
+  - Integrated into `EmploymentIncome.tsx` via `handleLStBImport` callback that calls `setValue()`
+  - Success/error status banners shown below the file input
+
+- [x] **Real-time Deduction Cap Indicators (Segment D)**:
+  - New component `frontend/src/components/CapIndicator.tsx` — progress bar + "X / Y max" label, amber when >90%, amber-dark when at cap
+  - `Deductions.tsx`: cap indicators for home office days (max 210) and total commute deduction (max €4,500)
+  - `SpecialExpenses.tsx`: cap indicators for Riester (€2,100 or €4,200 joint), alimony (€13,805), childcare (€6,000×numChildren)
+  - Uses `useWatch` for real-time reactivity (no submit needed)
+
+- [x] **Alembic Migrations (Segment E)**:
+  - Installed alembic 1.16.5, added to `requirements.txt`
+  - `alembic init alembic` — created `alembic/` directory with `env.py`, `versions/`
+  - `alembic/env.py` configured: imports `Base` from `app.database`, sets `target_metadata = Base.metadata`
+  - `alembic.ini`: `sqlalchemy.url = sqlite:///./smarttax.db`
+  - Initial migration `63eebdf4bf2e_initial_schema.py` created and applied: drops legacy `tax_returns` table (leftover from pre-session-001; table was not in current models)
+  - **Usage for future schema changes**: `venv/bin/alembic revision --autogenerate -m "description"` then `venv/bin/alembic upgrade head`
+
+- [x] Backend tests: 89 → 97. All 97 passing ✅. Frontend: 58/58 ✅.
+
+
+---
+
+## Completed Work (Session 012 — March 15, 2026)
+
+- [x] **TaxBreakdown redesign + animation fix**:
+  - Replaced jittery FlowRow (bars rendered at final width = no animation) with proper CSS transition animation: bars start at 0% width and grow to target width using `cubic-bezier(0.4, 0, 0.2, 1)` triggered by a parent `useEffect` after mount
+  - Staggered bar delays (0/130/260/390/520ms) — each bar grows in sequence for a professional waterfall effect
+  - Description text now uses `opacity` transition inside a fixed-height container — **eliminates layout shift jitter** (previously caused by conditional mount/unmount)
+  - `SummaryCard` redesigned: white background with 4px top accent border per color, sub-label line (e.g. "avg across all income"), cleaner sans-serif hierarchy
+  - `FlowRow` now shows a percentage badge on the right of each bar
+  - Section containers upgraded to `rounded-2xl` + `border-gray-100` shadow-sm for a cleaner look
+  - Bar chart: added `axisLine={false}`, `tickLine={false}`, styled tooltip with rounded corners + shadow
+  - Detailed breakdown: `Row` highlight colors now correctly green/red (refund is green-bordered, payment is red-bordered)
+
+- [x] **Teilfreistellung row shown in TaxBreakdown** — when `teilfreistellung_applied > 0`, an "ETF tax exemption (Teilfreistellung)" row appears under the investment income row showing the exempt amount and percentage
+
+- [x] **Soli withheld + KiSt withheld fields in Employment step**:
+  - Added `soliWithheld?` and `kirchensteuerWithheld?` to `EmploymentData` in `types/tax.ts`
+  - Added defaults (both 0) to store
+  - Added two new UI fields in `EmploymentIncome.tsx` (with FieldHint tooltips, Zeile references for LStB)
+  - Fixed `handleLStBImport` to populate all 4 fields (previously only grossSalary + taxesWithheld)
+  - Updated `taxCalculator.ts`: `total_withheld` now includes `soliWithheld + kirchensteuerWithheld`; `soli_withheld` / `kirchensteuer_withheld` returned in breakdown (were always 0 before)
+
+- [x] **Loss carry-forward module (§10d EStG — Verlustvortrag)**:
+  - Backend: `DeductionsInput.loss_carry_forward` field added; applied in `calculate_full_tax` at the ZVE step (clamped to 0 floor)
+  - Backend schema: `DeductionsInputSchema.loss_carry_forward` field with `ge=0` validation
+  - API route: passes through to `DeductionsInput`
+  - Frontend: `DeductionsData.lossCarryForward?` field; store default 0; `taxCalculator.ts` applies it
+  - UI: new amber-highlighted section in `Deductions.tsx` wizard step with explanation and Zeile reference
+  - 4 new backend tests (`TestLossCarryForward`), 3 new frontend tests
+
+- [x] **Tax Twin benchmark on Results page**:
+  - New `TaxTwinBenchmark` component using anonymised Destatis income statistics (6 income bands: < €25k to €100k+)
+  - Shows peer average refund vs user refund with proportional bars
+  - Positive framing if above average, advisory framing if below
+  - Only shown when `refund_or_payment > 0` (not shown for tax-due cases)
+  - Disclaimer note with data source
+
+- [x] **Admin panel review** — documented missing features for future sessions (see Next Session above)
+
+- [x] Backend tests: 97 → 105 (8 new). Frontend: 58 → 64 (6 new). All passing ✅.
+
+---
+
+## Next Session — Planned Work (SESSION_013)
+
+**Admin Panel improvements (documented this session):**
+- [ ] **Expose `notes` field per year** — currently in DB but not shown in the UI; add a text area in the parameters section.
+- [ ] **Year comparison view** — show parameters for two years side-by-side so admins can spot which values changed between years (e.g. 2025 → 2026 Grundfreibetrag diff).
+- [ ] **Parameter validation warnings** — client-side rules: zone limits must be ascending, rates must be < 1.0, Pauschbetrag > 0. Warn inline before save.
+- [ ] **Bulk export/import** — "Export as JSON" button alongside each year so admins can back up or share parameters; matching "Import from JSON" to restore.
+- [ ] **Audit log filtering** — filter by action type (UPDATE/CREATE/DELETE) and date range; currently shows all 20 entries unfiltered.
+- [ ] **AI model management** — Show disk usage per model; "Delete model" button that calls `ollama rm`; currently can only switch, not remove.
 
 **Medium priority (from competitor analysis):**
-- [ ] **"Tax Twin" benchmark**: Anonymized comparison — "people with similar income got €X on average". Computed from seeded/aggregated data.
-- [ ] **Steuerbescheid reader**: Upload PDF/photo of assessment letter → OCR → compare with our calc → flag discrepancies.
-- [ ] **Alembic migrations** for zero-downtime schema changes.
-- [ ] **Foreign income (Anlage AUS)** fields.
+- [ ] **Foreign income (Anlage AUS)** fields: country, gross income, foreign tax paid, treaty method (exemption or credit).
+- [ ] **"Tax Twin" benchmark** — currently shows static averages; future: aggregate real user data into percentile buckets (requires opt-in data collection).
+- [ ] **Steuerbescheid Reader** — OCR a Finanzamt assessment letter, compare against calculated numbers, flag discrepancies. High impact, requires PDF/image pipeline.
 
 **Advanced:**
 - [ ] Life Event Tax Planner (marriage, child, freelance — projects next year's tax).
-- [ ] ELSTER XML closer-to-spec ERiC format.
-- [ ] Loss carry-forward module.
 - [ ] Gewerbesteuer for self-employed.
-
+- [ ] Penalty-Free Deadline Tracker with push alerts (calendar integration).
+- [ ] Deduction Score™ — gamified 0–100 optimization score updated live.
+- [ ] Marginal Rate "What-If" Dial — live slider on Results page to see refund change in real time.
+  
 ---
 
 ## How to Continue a Session

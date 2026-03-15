@@ -271,10 +271,11 @@ export function calculateTax(
             ? getDisabilityPauschbetrag(personal.disabilityGrade ?? 0)
             : 0
 
-    // 6. ZVE before Kinderfreibetrag
+    // 6. ZVE before Kinderfreibetrag — apply §10d loss carry-forward last
+    const lossCarryForward = deductions.lossCarryForward || 0
     const zveBeforeKind = Math.max(
         0,
-        Math.floor(gesamtbetrag - sonderausgabenUsed - abl - disabilityPb),
+        Math.floor(gesamtbetrag - sonderausgabenUsed - abl - disabilityPb - lossCarryForward),
     )
 
     // 7. Tariff function
@@ -305,16 +306,29 @@ export function calculateTax(
     )
 
     // 11. Capital tax — flat 25% Abgeltungsteuer + 5.5% Soli
-    const taxableCapital = Math.max(
-        0,
-        otherIncome.dividends + otherIncome.capitalGains - p.sparer_pauschbetrag,
-    )
+    // Apply Teilfreistellung (InvStG 2018) based on fund type
+    const TEILFREISTELLUNG_RATES: Record<string, number> = {
+        equity_etf: 0.30,
+        mixed_fund: 0.15,
+        real_estate_fund: 0.60,
+        bond_fund: 0.0,
+        standard: 0.0,
+    }
+    const tfRate = TEILFREISTELLUNG_RATES[otherIncome.fundType ?? 'standard'] ?? 0.0
+    const grossCapital = otherIncome.dividends + otherIncome.capitalGains
+    const teilfreistellungExempt = Math.round(grossCapital * tfRate * 100) / 100
+    const effectiveCapital = grossCapital - teilfreistellungExempt
+    const taxableCapital = Math.max(0, effectiveCapital - p.sparer_pauschbetrag)
     const capitalTaxFlat = Math.floor(taxableCapital * 0.25 * 1.055)
     const capitalTaxDue = Math.max(0, capitalTaxFlat - otherIncome.capitalTaxesWithheld)
 
     // 12. Totals
     const totalTax = tariflicheEst + soli + kirchensteuer + capitalTaxDue
-    const totalWithheld = employment.taxesWithheld + otherIncome.capitalTaxesWithheld
+    const totalWithheld =
+        (employment.taxesWithheld || 0) +
+        (employment.soliWithheld || 0) +
+        (employment.kirchensteuerWithheld || 0) +
+        (otherIncome.capitalTaxesWithheld || 0)
     // Refund: positive = you get money back, negative = you owe
     const kindergeldOffset = freibetragUsed > 0 ? kindergeldAnnual : 0
     const refundOrPayment = totalWithheld - (tariflicheEst + soli + kirchensteuer) - kindergeldOffset
@@ -350,11 +364,13 @@ export function calculateTax(
         kindergeld_annual: kindergeldAnnual,
         capital_tax_flat: capitalTaxFlat,
         capital_tax_due: capitalTaxDue,
+        sparer_pauschbetrag_used: Math.min(effectiveCapital, p.sparer_pauschbetrag),
+        teilfreistellung_applied: teilfreistellungExempt,
         total_tax: totalTax,
         // Withheld
         lohnsteuer_withheld: employment.taxesWithheld,
-        soli_withheld: 0,
-        kirchensteuer_withheld: 0,
+        soli_withheld: employment.soliWithheld ?? 0,
+        kirchensteuer_withheld: employment.kirchensteuerWithheld ?? 0,
         capital_tax_withheld: otherIncome.capitalTaxesWithheld,
         total_withheld: totalWithheld,
         // Bottom line

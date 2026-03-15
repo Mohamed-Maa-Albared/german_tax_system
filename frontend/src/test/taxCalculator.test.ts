@@ -310,3 +310,61 @@ describe('Monotonicity', () => {
         }
     })
 })
+
+// ---------------------------------------------------------------------------
+// §10d EStG — Loss carry-forward
+// ---------------------------------------------------------------------------
+
+describe('Loss carry-forward (§10d EStG)', () => {
+    it('reduces ZVE by the carry-forward amount', () => {
+        const r_no = calc(50000)
+        const r_lf = calc(50000, {
+            deductions: { commuteKm: 0, commuteDays: 0, homeOfficeDays: 0, otherWorkExpenses: 0, lossCarryForward: 5_000 },
+        })
+        expect(r_no.zve - r_lf.zve).toBeCloseTo(5_000, 0)
+    })
+
+    it('ZVE never goes below zero with huge carry-forward', () => {
+        const r = calc(12000, {
+            deductions: { commuteKm: 0, commuteDays: 0, homeOfficeDays: 0, otherWorkExpenses: 0, lossCarryForward: 999_999 },
+        })
+        expect(r.zve).toBeGreaterThanOrEqual(0)
+    })
+
+    it('reduces income tax', () => {
+        const r_no = calc(60000)
+        const r_lf = calc(60000, {
+            deductions: { commuteKm: 0, commuteDays: 0, homeOfficeDays: 0, otherWorkExpenses: 0, lossCarryForward: 8_000 },
+        })
+        expect(r_lf.tarifliche_est).toBeLessThan(r_no.tarifliche_est)
+    })
+})
+
+// ---------------------------------------------------------------------------
+// Soli + KiSt withheld in total_withheld
+// ---------------------------------------------------------------------------
+
+describe('Soli and KiSt withheld in total_withheld', () => {
+    it('soliWithheld is included in total_withheld', () => {
+        const r = calc(80000, {
+            employment: { grossSalary: 80000, taxesWithheld: 20000, bonus: 0, soliWithheld: 600 },
+        })
+        expect(r.total_withheld).toBe(20600)
+        expect(r.soli_withheld).toBe(600)
+    })
+
+    it('kirchensteuerWithheld is included in total_withheld', () => {
+        const r = calc(50000, {
+            employment: { grossSalary: 50000, taxesWithheld: 10000, bonus: 0, kirchensteuerWithheld: 900 },
+        })
+        expect(r.total_withheld).toBe(10900)
+        expect(r.kirchensteuer_withheld).toBe(900)
+    })
+
+    it('all three withheld types sum correctly', () => {
+        const r = calc(100000, {
+            employment: { grossSalary: 100000, taxesWithheld: 30000, bonus: 0, soliWithheld: 700, kirchensteuerWithheld: 1500 },
+        })
+        expect(r.total_withheld).toBe(32200)
+    })
+})

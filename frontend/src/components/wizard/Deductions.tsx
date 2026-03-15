@@ -1,8 +1,9 @@
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { useTaxStore } from '../../lib/store'
 import { DeductionsData } from '../../types/tax'
 import AIHint from '../AIHint'
 import AmountToggle, { useAmountMode } from '../AmountToggle'
+import CapIndicator from '../CapIndicator'
 import FieldHint from '../FieldHint'
 
 interface Props {
@@ -12,9 +13,14 @@ interface Props {
 
 export default function Deductions({ onNext, onBack }: Props) {
     const { deductions, updateDeductions } = useTaxStore()
-    const { register, handleSubmit } = useForm<DeductionsData>({ defaultValues: deductions })
+    const { register, handleSubmit, control } = useForm<DeductionsData>({ defaultValues: deductions })
     const { mode, setMode, toAnnual } = useAmountMode()
     const unit = mode === 'monthly' ? '€/month' : '€/year'
+
+    const homeOfficeDays = useWatch({ control, name: 'homeOfficeDays' }) || 0
+    const commuteKm = useWatch({ control, name: 'commuteKm' }) || 0
+    const commuteDays = useWatch({ control, name: 'commuteDays' }) || 0
+    const commuteTotal = Math.round(commuteKm * commuteDays * 0.38)
 
     function onSubmit(data: DeductionsData) {
         updateDeductions({
@@ -23,6 +29,7 @@ export default function Deductions({ onNext, onBack }: Props) {
             workTraining: toAnnual(data.workTraining ?? 0),
             unionFees: toAnnual(data.unionFees ?? 0),
             otherWorkExpenses: toAnnual(data.otherWorkExpenses),
+            lossCarryForward: data.lossCarryForward ?? 0,
         })
         onNext()
     }
@@ -68,6 +75,12 @@ export default function Deductions({ onNext, onBack }: Props) {
                         placeholder="e.g. 20"
                     />
                     <p className="text-xs text-gray-400 mt-1">€0.38/km × commute days (2026 unified rate from km 1)</p>
+                    <CapIndicator
+                        current={commuteTotal}
+                        max={4_500}
+                        label="Commute deduction cap"
+                        unit="€"
+                    />
                 </div>
 
                 {/* Commute days */}
@@ -111,6 +124,7 @@ export default function Deductions({ onNext, onBack }: Props) {
                         placeholder="e.g. 80"
                     />
                     <p className="text-xs text-gray-400 mt-1">€6/day, maximum 210 days (€1,260/year)</p>
+                    <CapIndicator current={homeOfficeDays} max={210} label="Home office cap" unit="days" />
                     <AIHint term="Homeoffice-Pauschale" />
                 </div>
 
@@ -196,6 +210,30 @@ export default function Deductions({ onNext, onBack }: Props) {
                         placeholder="0"
                     />
                     <p className="text-xs text-gray-400 mt-1">Work clothing, application costs, professional insurances, etc.</p>
+                </div>
+
+                {/* Loss carry-forward */}
+                <div className="sm:col-span-2">
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                        <label className="block text-sm font-semibold text-amber-800 mb-1">
+                            Prior-Year Loss Carry-Forward (optional)
+                            <FieldHint
+                                explanation="If you had unclaimed losses in prior years — e.g. from self-employment or rental activity — the Finanzamt may have issued a Verlustfeststellungsbescheid. This loss can be deducted from your current-year taxable income under §10d EStG."
+                                germanTerm="Verlustvortrag (§10d EStG)"
+                                whereToFind="Your Verlustfeststellungsbescheid from the Finanzamt (the annual letter confirming your carried-forward loss balance). Enter the amount you wish to apply this year."
+                            />
+                        </label>
+                        <p className="text-xs text-amber-700 mb-2">Only enter this if the Finanzamt issued you a Verlustfeststellungsbescheid for a prior year.</p>
+                        <input
+                            type="number"
+                            min={0}
+                            step="any"
+                            {...register('lossCarryForward', { valueAsNumber: true, min: 0 })}
+                            className="w-full sm:w-64 border border-amber-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300 bg-white"
+                            placeholder="0"
+                        />
+                        <p className="text-xs text-amber-600 mt-1">Reduces your taxable income (ZVE) directly — §10d EStG Verlustvortrag</p>
+                    </div>
                 </div>
             </div>
 

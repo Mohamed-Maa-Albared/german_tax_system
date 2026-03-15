@@ -48,9 +48,13 @@ const defaultPersonal: PersonalData = {
 const defaultEmployment: EmploymentData = {
     grossSalary: 0,
     taxesWithheld: 0,
+    soliWithheld: 0,
+    kirchensteuerWithheld: 0,
     bonus: 0,
     bonusType: 'fixed',
     bonusPercent: 0,
+    hasSalaryChange: false,
+    salaryPeriods: [],
 }
 
 const defaultOtherIncome: OtherIncomeData = {
@@ -61,6 +65,8 @@ const defaultOtherIncome: OtherIncomeData = {
     capitalTaxesWithheld: 0,
     rentalIncome: 0,
     rentalExpenses: 0,
+    fundType: 'standard',
+    vorabpauschale: 0,
 }
 
 const defaultDeductions: DeductionsData = {
@@ -71,6 +77,7 @@ const defaultDeductions: DeductionsData = {
     workEquipment: 0,
     workTraining: 0,
     unionFees: 0,
+    lossCarryForward: 0,
 }
 
 const defaultSpecialExpenses: SpecialExpensesData = {

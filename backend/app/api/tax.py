@@ -77,6 +77,8 @@ def calculate_tax(request: TaxCalculationRequest, db: Session = Depends(get_db))
         investments=InvestmentInput(
             gross_income=request.investments.gross_income,
             tax_withheld=request.investments.tax_withheld,
+            fund_type=request.investments.fund_type,
+            vorabpauschale=request.investments.vorabpauschale,
         ),
         rental=RentalInput(
             gross_income=request.rental.gross_income,
@@ -90,6 +92,7 @@ def calculate_tax(request: TaxCalculationRequest, db: Session = Depends(get_db))
             work_training=request.deductions.work_training,
             other_work_expenses=request.deductions.other_work_expenses,
             union_fees=request.deductions.union_fees,
+            loss_carry_forward=request.deductions.loss_carry_forward,
         ),
         special_expenses=SpecialExpensesInput(
             health_insurance=request.special_expenses.health_insurance,
@@ -129,6 +132,7 @@ def calculate_tax(request: TaxCalculationRequest, db: Session = Depends(get_db))
         total_tax=breakdown.total_tax,
         capital_tax_flat=breakdown.capital_tax_flat,
         sparer_pauschbetrag_used=breakdown.sparer_pauschbetrag_used,
+        teilfreistellung_applied=breakdown.teilfreistellung_applied,
         lohnsteuer_withheld=breakdown.lohnsteuer_withheld,
         soli_withheld=breakdown.soli_withheld,
         kirchensteuer_withheld=breakdown.kirchensteuer_withheld,

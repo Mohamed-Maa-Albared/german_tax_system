@@ -16,9 +16,19 @@ export interface PersonalData {
 export interface EmploymentData {
     grossSalary: number
     taxesWithheld: number
+    soliWithheld?: number        // Soli Zeile 5 on Lohnsteuerbescheinigung
+    kirchensteuerWithheld?: number  // KiSt Zeile 6+7 on Lohnsteuerbescheinigung
     bonus: number             // resolved euro amount always used for calculation
     bonusType?: 'fixed' | 'percent'  // UI preference — fixed € or % of gross salary
     bonusPercent?: number    // percentage value when bonusType === 'percent'
+    // Salary-change support: if hasSalaryChange is true, periods override grossSalary
+    hasSalaryChange?: boolean
+    salaryPeriods?: SalaryPeriod[]
+}
+
+export interface SalaryPeriod {
+    months: number      // number of months at this salary (1–12)
+    monthlyGross: number  // gross monthly salary for this period
 }
 
 export interface OtherIncomeData {
@@ -29,6 +39,9 @@ export interface OtherIncomeData {
     capitalTaxesWithheld: number
     rentalIncome: number
     rentalExpenses: number
+    // ETF / fund type — drives Teilfreistellung (InvStG 2018)
+    fundType?: 'standard' | 'equity_etf' | 'mixed_fund' | 'real_estate_fund' | 'bond_fund'
+    vorabpauschale?: number  // §18 InvStG advance lump-sum already withheld by broker
 }
 
 export interface DeductionsData {
@@ -39,6 +52,7 @@ export interface DeductionsData {
     workEquipment?: number   // desk, laptop, chair — fully deductible (GWG ≤€952)
     workTraining?: number    // courses, books, professional education
     unionFees?: number       // Gewerkschaftsbeiträge
+    lossCarryForward?: number  // §10d EStG — Verlustvortrag from prior years
 }
 
 export interface SpecialExpensesData {
@@ -129,6 +143,7 @@ export interface TaxBreakdown {
     capital_tax_flat: number
     capital_tax_due: number
     sparer_pauschbetrag_used?: number
+    teilfreistellung_applied?: number  // InvStG exempt amount (equity ETF 30%, mixed 15%, etc.)
     total_tax: number
 
     // Withheld

@@ -23,6 +23,8 @@ export default function OtherIncome({ onNext, onBack }: Props) {
             capitalTaxesWithheld: toAnnual(data.capitalTaxesWithheld),
             rentalIncome: toAnnual(data.rentalIncome),
             rentalExpenses: toAnnual(data.rentalExpenses),
+            fundType: data.fundType ?? 'standard',
+            vorabpauschale: toAnnual(data.vorabpauschale ?? 0),
         })
         onNext()
     }
@@ -101,6 +103,39 @@ export default function OtherIncome({ onNext, onBack }: Props) {
                         register={register}
                         mode={mode}
                     />
+                    {/* Vorabpauschale — advance lump-sum prepayment for ETFs */}
+                    <Field
+                        label="Vorabpauschale Already Withheld (€)"
+                        hint={{ explanation: "A small pre-payment tax on ETFs that did not distribute dividends. Your broker withholds Abgeltungsteuer on this in January each year. Enter 0 if you don't hold accumulating ETFs, or if already included in your 'Capital Taxes Withheld' above.", germanTerm: "Vorabpauschale (§18 InvStG)", whereToFind: "Annual statement from your broker — look for 'Vorabpauschale' in the capital income section of your Jahressteuerbescheinigung." }}
+                        name="vorabpauschale"
+                        register={register}
+                        mode={mode}
+                    />
+                </div>
+
+                {/* ETF / fund type selector — drives Teilfreistellung */}
+                <div className="mt-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Investment Fund Type
+                        <FieldHint
+                            explanation="Select the type of your investment fund. Since the 2018 InvStG reform, a portion of gains from investment funds is automatically tax-free (Teilfreistellung): 30% for equity ETFs, 15% for mixed funds, 60% for real estate funds. Select 'Standard' for individual shares, bonds, or savings accounts — no partial exemption applies."
+                            germanTerm="Fondsart / Teilfreistellungsquote (InvStG 2018)"
+                            whereToFind="Your broker's product information or fund factsheet. The fund category is listed as 'Aktienfonds' (equity), 'Mischfonds' (mixed), 'Immobilienfonds' (real estate), or 'Sonstige' (other/bond)."
+                        />
+                    </label>
+                    <select
+                        {...register('fundType')}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300 bg-white"
+                    >
+                        <option value="standard">Standard (Stocks / Bonds / Savings — no exemption)</option>
+                        <option value="equity_etf">Equity ETF / Aktienfonds — 30% tax-free</option>
+                        <option value="mixed_fund">Mixed Fund / Mischfonds — 15% tax-free</option>
+                        <option value="real_estate_fund">Real Estate Fund / Immobilienfonds — 60% tax-free</option>
+                        <option value="bond_fund">Bond Fund / Rentenfonds — no exemption</option>
+                    </select>
+                    <p className="text-xs text-gray-400 mt-1">
+                        Teilfreistellung is applied to total dividends + capital gains above.
+                    </p>
                 </div>
                 <p className="text-xs text-gray-400 mt-2">
                     €1,000 tax-free investment allowance (Sparer-Pauschbetrag) is applied automatically.

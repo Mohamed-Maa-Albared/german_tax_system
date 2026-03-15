@@ -1,8 +1,9 @@
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { useTaxStore } from '../../lib/store'
 import { SpecialExpensesData } from '../../types/tax'
 import AIHint from '../AIHint'
 import AmountToggle, { useAmountMode } from '../AmountToggle'
+import CapIndicator from '../CapIndicator'
 import FieldHint from '../FieldHint'
 
 interface Props {
@@ -12,11 +13,24 @@ interface Props {
 
 export default function SpecialExpenses({ onNext, onBack }: Props) {
     const { specialExpenses, updateSpecialExpenses } = useTaxStore()
-    const { register, handleSubmit } = useForm<SpecialExpensesData>({
+    const { register, handleSubmit, control } = useForm<SpecialExpensesData>({
         defaultValues: specialExpenses,
     })
     const { mode, setMode, toAnnual } = useAmountMode()
     const unit = mode === 'monthly' ? '€/month' : '€/year'
+
+    // Watch values for real-time cap indicators
+    const pension = useWatch({ control, name: 'pensionContributions' }) || 0
+    const riester = useWatch({ control, name: 'riesterContributions' }) || 0
+    const alimony = useWatch({ control, name: 'alimonyPaid' }) || 0
+    const childcare = useWatch({ control, name: 'childcareCosts' }) || 0
+    const { personal } = useTaxStore()
+    const isJoint = personal.isMarried
+    const numChildren = personal.numChildren
+    const riesterCap = isJoint ? 4_200 : 2_100
+    const pensionCap = isJoint ? 61_652 : 30_826
+    // Childcare: entered as total for all children, cap is per-child €6,000 actual (§10 EStG)
+    const childcareCap = numChildren > 0 ? numChildren * 6_000 : 6_000
 
     function onSubmit(data: SpecialExpensesData) {
         updateSpecialExpenses({
@@ -134,6 +148,12 @@ export default function SpecialExpenses({ onNext, onBack }: Props) {
                         placeholder="0"
                     />
                     <p className="text-xs text-gray-400 mt-1">Deductible up to €2,100/year (€4,200 joint filing)</p>
+                    <CapIndicator
+                        current={mode === 'monthly' ? riester * 12 : riester}
+                        max={riesterCap}
+                        label="Riester cap"
+                        unit="€"
+                    />
                 </div>
 
                 {/* Donations */}
@@ -176,6 +196,12 @@ export default function SpecialExpenses({ onNext, onBack }: Props) {
                         placeholder="0"
                     />
                     <p className="text-xs text-gray-400 mt-1">Ex-spouse spousal support only (not child support). Max €13,805</p>
+                    <CapIndicator
+                        current={mode === 'monthly' ? alimony * 12 : alimony}
+                        max={13_805}
+                        label="Alimony cap"
+                        unit="€"
+                    />
                 </div>
 
                 {/* Childcare */}
@@ -197,6 +223,14 @@ export default function SpecialExpenses({ onNext, onBack }: Props) {
                         placeholder="0"
                     />
                     <p className="text-xs text-gray-400 mt-1">80% deductible, max €4,800/child under 14 (§10 EStG)</p>
+                    {numChildren > 0 && (
+                        <CapIndicator
+                            current={mode === 'monthly' ? childcare * 12 : childcare}
+                            max={childcareCap}
+                            label={`Childcare cap (${numChildren} child${numChildren !== 1 ? 'ren' : ''})`}
+                            unit="€"
+                        />
+                    )}
                 </div>
 
                 {/* Medical costs */}

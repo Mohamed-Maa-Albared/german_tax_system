@@ -1084,3 +1084,276 @@ class TestAdvisorScenarioMaxDeductions:
             }
         )
         assert d["refund_or_payment"] > 0
+
+
+class TestETFTeilfreistellung:
+    """
+    Scenario 9 — ETF / fund Teilfreistellung (§20/21 InvStG 2018 reform).
+    Equity ETFs: 30% of income is tax-free.
+    Mixed funds:  15% tax-free.
+    Real estate funds: 60% tax-free.
+    Bond / standard funds: 0% tax-free (full taxation).
+    """
+
+    def test_standard_investment_unchanged(self):
+        """Regression: fund_type='standard' must yield same result as before."""
+        d_old = _scenario({"investments": {"gross_income": 5_000, "tax_withheld": 0}})
+        d_new = _scenario(
+            {
+                "investments": {
+                    "gross_income": 5_000,
+                    "tax_withheld": 0,
+                    "fund_type": "standard",
+                }
+            }
+        )
+        assert d_old["capital_tax_flat"] == d_new["capital_tax_flat"]
+        assert d_new["teilfreistellung_applied"] == 0.0
+
+    def test_equity_etf_30_percent_exempt(self):
+        """Equity ETF: only 70% of €5,000 = €3,500 is taxable (after 30% Teilfreistellung).
+        After Sparer-Pauschbetrag €1,000 → taxable €2,500.
+        Flat tax = int(2500*0.25 + 2500*0.25*0.055) = int(625 + 34.375) = 659."""
+        d = _scenario(
+            {
+                "investments": {
+                    "gross_income": 5_000,
+                    "tax_withheld": 0,
+                    "fund_type": "equity_etf",
+                }
+            }
+        )
+        assert d["teilfreistellung_applied"] == pytest.approx(
+            1_500.0, abs=1
+        )  # 30% of 5000
+        # taxable = (5000*0.70) - 1000 = 2500
+        # flat_tax = int(2500*0.25 + 2500*0.25*0.055) = int(659.375) = 659
+        assert d["capital_tax_flat"] == pytest.approx(659, abs=2)
+
+    def test_equity_etf_less_than_standard(self):
+        """Equity ETF tax must always be lower than standard for same gross income."""
+        d_std = _scenario(
+            {
+                "investments": {
+                    "gross_income": 10_000,
+                    "tax_withheld": 0,
+                    "fund_type": "standard",
+                }
+            }
+        )
+        d_etf = _scenario(
+            {
+                "investments": {
+                    "gross_income": 10_000,
+                    "tax_withheld": 0,
+                    "fund_type": "equity_etf",
+                }
+            }
+        )
+        assert d_etf["capital_tax_flat"] < d_std["capital_tax_flat"]
+
+    def test_mixed_fund_15_percent_exempt(self):
+        """Mixed fund: 85% of €4,000 = €3,400 taxable, then minus €1,000 = €2,400."""
+        d = _scenario(
+            {
+                "investments": {
+                    "gross_income": 4_000,
+                    "tax_withheld": 0,
+                    "fund_type": "mixed_fund",
+                }
+            }
+        )
+        assert d["teilfreistellung_applied"] == pytest.approx(
+            600.0, abs=1
+        )  # 15% of 4000
+
+    def test_real_estate_fund_60_percent_exempt(self):
+        """Real estate fund: 40% of €5,000 = €2,000 taxable after Teilfreistellung.
+        2000 - 1000 Sparer = 1000 taxable."""
+        d = _scenario(
+            {
+                "investments": {
+                    "gross_income": 5_000,
+                    "tax_withheld": 0,
+                    "fund_type": "real_estate_fund",
+                }
+            }
+        )
+        assert d["teilfreistellung_applied"] == pytest.approx(
+            3_000.0, abs=1
+        )  # 60% of 5000
+        # effective gross = 2000; taxable after Sparer-Pauschbetrag = 1000
+        # flat tax = int(1000*0.25 + 1000*0.25*0.055) = int(263.75) = 263
+        assert d["capital_tax_flat"] == pytest.approx(263, abs=2)
+
+    def test_below_sparer_pauschbetrag_after_teilfreistellung(self):
+        """If gains * (1-rate) < €1,000, no tax due."""
+        # equity_etf: 700 * 0.70 = 490 < 1000 → zero tax
+        d = _scenario(
+            {
+                "investments": {
+                    "gross_income": 700,
+                    "tax_withheld": 0,
+                    "fund_type": "equity_etf",
+                }
+            }
+        )
+        assert d["capital_tax_flat"] == 0.0
+
+    def test_withheld_tax_reduces_due(self):
+        """If broker already withheld enough, capital_tax_flat (due) approaches 0."""
+        d = _scenario(
+            {
+                "investments": {
+                    "gross_income": 5_000,
+                    "tax_withheld": 1_000,
+                    "fund_type": "standard",
+                }
+            }
+        )
+        # Total tax = int((5000-1000)*0.25 * 1.055) = int(1055) = 1055; due = max(0, 1055-1000)
+        assert d["capital_tax_flat"] >= 0  # always non-negative
+        assert d["capital_tax_withheld"] == 1_000
+
+    def test_teilfreistellung_applied_in_response(self):
+        """API response must include teilfreistellung_applied field."""
+        d = _scenario(
+            {
+                "investments": {
+                    "gross_income": 2_000,
+                    "tax_withheld": 0,
+                    "fund_type": "equity_etf",
+                }
+            }
+        )
+        assert "teilfreistellung_applied" in d
+        assert d["teilfreistellung_applied"] == pytest.approx(
+            600.0, abs=1
+        )  # 30% of 2000
+
+
+# ---------------------------------------------------------------------------
+# §10d EStG — Loss carry-forward tests
+# ---------------------------------------------------------------------------
+
+
+class TestLossCarryForward:
+    """§10d EStG — Verlustvortrag reduces ZVE by the carry-forward amount."""
+
+    def test_loss_carry_forward_reduces_zve(self):
+        """Loss carry-forward of €5,000 must reduce ZVE by €5,000."""
+        d_no_loss = _scenario({"employment": {"gross_salary": 50_000}})
+        d_with_loss = _scenario(
+            {
+                "employment": {"gross_salary": 50_000},
+                "deductions": {"loss_carry_forward": 5_000},
+            }
+        )
+        assert d_no_loss["zve"] - d_with_loss["zve"] == pytest.approx(5_000, abs=1)
+
+    def test_loss_carry_forward_reduces_tax(self):
+        """Carry-forward must result in lower income tax."""
+        d_no = _scenario({"employment": {"gross_salary": 50_000}})
+        d_lf = _scenario(
+            {
+                "employment": {"gross_salary": 50_000},
+                "deductions": {"loss_carry_forward": 10_000},
+            }
+        )
+        assert d_lf["tarifliche_est"] < d_no["tarifliche_est"]
+
+    def test_loss_carry_forward_cannot_create_negative_zve(self):
+        """ZVE must never go below zero — carry-forward is clamped."""
+        d = _scenario(
+            {
+                "employment": {"gross_salary": 15_000},
+                "deductions": {"loss_carry_forward": 999_999},
+            }
+        )
+        assert d["zve"] >= 0
+
+    def test_zero_loss_carry_forward_no_effect(self):
+        """Default carry-forward of 0 must be a no-op."""
+        d_default = _scenario({"employment": {"gross_salary": 50_000}})
+        d_zero = _scenario(
+            {
+                "employment": {"gross_salary": 50_000},
+                "deductions": {"loss_carry_forward": 0},
+            }
+        )
+        assert d_default["zve"] == d_zero["zve"]
+
+
+# ---------------------------------------------------------------------------
+# Soli + KiSt withheld — total_withheld accuracy
+# ---------------------------------------------------------------------------
+
+
+class TestWithheldAmounts:
+    """Soli and church tax withheld by employer are included in total_withheld."""
+
+    def test_soli_withheld_in_total(self):
+        """soli_withheld must appear in total_withheld."""
+        d = _scenario(
+            {
+                "employment": {
+                    "gross_salary": 80_000,
+                    "lohnsteuer_withheld": 20_000,
+                    "soli_withheld": 500,
+                    "kirchensteuer_withheld": 0,
+                }
+            }
+        )
+        assert d["soli_withheld"] == 500
+        assert d["total_withheld"] == pytest.approx(20_500, abs=1)
+
+    def test_kirchensteuer_withheld_in_total(self):
+        """kirchensteuer_withheld must appear in total_withheld."""
+        d = _scenario(
+            {
+                "employment": {
+                    "gross_salary": 50_000,
+                    "lohnsteuer_withheld": 10_000,
+                    "soli_withheld": 0,
+                    "kirchensteuer_withheld": 900,
+                }
+            }
+        )
+        assert d["kirchensteuer_withheld"] == 900
+        assert d["total_withheld"] == pytest.approx(10_900, abs=1)
+
+    def test_all_three_withheld_types_summed(self):
+        """lohnsteuer + soli + kirche withheld must all sum into total."""
+        d = _scenario(
+            {
+                "employment": {
+                    "gross_salary": 100_000,
+                    "lohnsteuer_withheld": 30_000,
+                    "soli_withheld": 700,
+                    "kirchensteuer_withheld": 1_500,
+                }
+            }
+        )
+        assert d["total_withheld"] == pytest.approx(32_200, abs=1)
+
+    def test_withheld_improves_refund(self):
+        """Higher withheld → larger refund."""
+        d_low = _scenario(
+            {
+                "employment": {
+                    "gross_salary": 60_000,
+                    "lohnsteuer_withheld": 15_000,
+                    "soli_withheld": 0,
+                }
+            }
+        )
+        d_high = _scenario(
+            {
+                "employment": {
+                    "gross_salary": 60_000,
+                    "lohnsteuer_withheld": 15_000,
+                    "soli_withheld": 800,
+                }
+            }
+        )
+        assert d_high["refund_or_payment"] > d_low["refund_or_payment"]

@@ -37,6 +37,8 @@ class SelfEmployedInput:
 class InvestmentInput:
     gross_income: float = 0.0
     tax_withheld: float = 0.0
+    fund_type: str = "standard"  # InvStG fund type for Teilfreistellung
+    vorabpauschale: float = 0.0  # §18 InvStG advance lump-sum already withheld
 
 
 @dataclass
@@ -58,6 +60,7 @@ class DeductionsInput:
     work_training: float = 0.0
     other_work_expenses: float = 0.0
     union_fees: float = 0.0
+    loss_carry_forward: float = 0.0  # §10d EStG — Verlustvortrag from prior years
 
 
 @dataclass
@@ -133,6 +136,7 @@ class TaxBreakdown:
     # Capital income flat tax (Abgeltungsteuer 25% + Soli)
     capital_tax_flat: float = 0.0
     sparer_pauschbetrag_used: float = 0.0
+    teilfreistellung_applied: float = 0.0  # exempt amount via InvStG Teilfreistellung
 
     # Withheld / already paid
     lohnsteuer_withheld: float = 0.0
@@ -386,23 +390,42 @@ def calculate_kinderfreibetrag_vs_kindergeld(
         return 0.0, kindergeld_annual, tax_without
 
 
+# InvStG 2018 Teilfreistellungsquoten (§20/21 InvStG) — share of income exempt from
+# Abgeltungsteuer depending on at least how much of the fund is invested in equities.
+_TEILFREISTELLUNG_RATES: dict[str, float] = {
+    "equity_etf": 0.30,  # Aktienfonds ≥50% shares  (§20 Abs.1 Nr.3 InvStG)
+    "mixed_fund": 0.15,  # Mischfonds 25–50% shares (§20 Abs.1 Nr.2 InvStG)
+    "real_estate_fund": 0.60,  # Immobilienfonds          (§21 InvStG)
+    "bond_fund": 0.0,
+    "standard": 0.0,
+}
+
+
 def calculate_capital_tax(inv: InvestmentInput, p: TaxYearParameter) -> tuple:
     """
     Capital income: Abgeltungsteuer 25% + Soli on flat tax.
-    Sparer-Pauschbetrag of €1,000 applies first.
-    Returns (capital_tax_due, sparer_pauschbetrag_used).
+    Teilfreistellung (§20/21 InvStG) is applied first to reduce taxable gross.
+    Sparer-Pauschbetrag of €1,000 applies after Teilfreistellung.
+    Vorabpauschale already withheld by broker reduces tax due.
+    Returns (capital_tax_due, sparer_pauschbetrag_used, teilfreistellung_exempt_amount).
     """
-    taxable = max(0.0, inv.gross_income - p.sparer_pauschbetrag)
+    rate = _TEILFREISTELLUNG_RATES.get(inv.fund_type, 0.0)
+    exempt_amount = round(inv.gross_income * rate, 2)
+    effective_gross = inv.gross_income - exempt_amount
+
+    taxable = max(0.0, effective_gross - p.sparer_pauschbetrag)
     if taxable <= 0:
-        return 0.0, min(inv.gross_income, p.sparer_pauschbetrag)
+        return 0.0, min(effective_gross, p.sparer_pauschbetrag), exempt_amount
 
     flat_tax = taxable * 0.25
     soli_on_flat = calculate_soli_flat(flat_tax)
     total = int(flat_tax + soli_on_flat)
 
+    # tax_withheld includes Abgeltungsteuer on both regular income and Vorabpauschale;
+    # vorabpauschale field is kept for transparency but is already part of tax_withheld.
     already_withheld = inv.tax_withheld
     tax_due = max(0.0, total - already_withheld)
-    return tax_due, p.sparer_pauschbetrag
+    return tax_due, p.sparer_pauschbetrag, exempt_amount
 
 
 def calculate_soli_flat(flat_tax: float) -> float:
@@ -504,9 +527,12 @@ def calculate_full_tax(inp: TaxCalculationInput, p: TaxYearParameter) -> TaxBrea
     bd.rental_net = inp.rental.net_income
 
     # Capital income taxed flat — not part of progressive base
-    capital_tax_due, sparer_used = calculate_capital_tax(inp.investments, p)
+    capital_tax_due, sparer_used, teilfreistellung_exempt = calculate_capital_tax(
+        inp.investments, p
+    )
     bd.capital_tax_flat = capital_tax_due
     bd.sparer_pauschbetrag_used = sparer_used
+    bd.teilfreistellung_applied = teilfreistellung_exempt
 
     # ── 2. Werbungskosten ─────────────────────────────────────────────────────
     wk_total = calculate_werbungskosten(inp.deductions, p)
@@ -547,7 +573,12 @@ def calculate_full_tax(inp: TaxCalculationInput, p: TaxYearParameter) -> TaxBrea
 
     # ── 6. ZVE before Kinderfreibetrag ────────────────────────────────────────
     zve_before_kind = max(
-        0.0, gesamtbetrag - bd.sonderausgaben_used - abl - disability_pb
+        0.0,
+        gesamtbetrag
+        - bd.sonderausgaben_used
+        - abl
+        - disability_pb
+        - inp.deductions.loss_carry_forward,
     )
 
     # ── 7. Choose tariff function ─────────────────────────────────────────────
