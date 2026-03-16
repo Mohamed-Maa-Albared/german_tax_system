@@ -36,19 +36,21 @@ interface AmountToggleProps {
 export default function AmountToggle({ mode, onChange }: AmountToggleProps) {
     return (
         <div className="flex flex-col items-end gap-1 shrink-0">
-            <span className="text-xs text-gray-400 font-medium">Enter amounts as</span>
-            <div className="flex rounded-full border border-gray-200 overflow-hidden bg-gray-50">
+            <span className="font-mono text-[10px] uppercase tracking-widest text-gray-400 dark:text-slate-500">
+                Enter amounts as
+            </span>
+            <div className="flex h-8 rounded-full border border-gray-200 dark:border-white/10 overflow-hidden bg-gray-50 dark:bg-sn-surface">
                 {(['yearly', 'monthly'] as AmountMode[]).map((m) => (
                     <button
                         key={m}
                         type="button"
                         onClick={() => onChange(m)}
-                        className={`px-3 py-1 text-xs font-medium transition-colors capitalize ${mode === m
-                            ? 'bg-brand-600 text-white'
-                            : 'text-gray-500 hover:text-gray-700'
+                        className={`px-3.5 h-full text-xs font-medium transition-colors whitespace-nowrap ${mode === m
+                                ? 'bg-brand-600 text-white'
+                                : 'text-gray-500 dark:text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 hover:bg-brand-50 dark:hover:bg-brand-600/10'
                             }`}
                     >
-                        {m === 'yearly' ? 'Annual total' : 'Monthly × 12'}
+                        {m === 'yearly' ? 'Annual' : 'Monthly × 12'}
                     </button>
                 ))}
             </div>

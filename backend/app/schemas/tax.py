@@ -14,6 +14,11 @@ class PersonalInputSchema(BaseModel):
     is_full_year_resident: bool = True
     is_disabled: bool = False
     disability_grade: int = Field(0, ge=0, le=100)
+    occupation_type: str = Field(
+        "employee",
+        pattern="^(employee|teacher_civil_servant|freelancer)$",
+        description="Occupation type — enables teacher/Beamte-specific deduction suggestions",
+    )
 
 
 class EmploymentInputSchema(BaseModel):
@@ -60,6 +65,58 @@ class DeductionsInputSchema(BaseModel):
         0.0,
         ge=0,
         description="§10d EStG Verlustvortrag — losses carried forward from prior years",
+    )
+    # ── Häusliches Arbeitszimmer (§4 Abs.5 Nr.6b / §9 Abs.5 EStG) ──────────
+    home_office_type: str = Field(
+        "pauschale",
+        pattern="^(pauschale|arbeitszimmer)$",
+        description="'pauschale' = €6/day flat rate; 'arbeitszimmer' = proportional rent for a dedicated room",
+    )
+    arbeitszimmer_mittelpunkt: bool = Field(
+        False,
+        description="True only if the home office is the Mittelpunkt (centre) of all professional activity (>50% of work)",
+    )
+    apartment_sqm: float = Field(
+        0.0, ge=0, le=1_000, description="Total floor area of the apartment in m²"
+    )
+    office_sqm: float = Field(
+        0.0, ge=0, le=500, description="Floor area of the dedicated office room in m²"
+    )
+    monthly_warm_rent: float = Field(
+        0.0,
+        ge=0,
+        le=50_000,
+        description="Total monthly warm rent + Nebenkosten for the whole apartment",
+    )
+    your_rent_share_pct: float = Field(
+        100.0,
+        ge=0,
+        le=100,
+        description="Your percentage share of the rent (100 if you pay alone; 50 if split equally with partner)",
+    )
+    arbeitszimmer_start_month: int = Field(
+        1,
+        ge=1,
+        le=12,
+        description="Month the dedicated office room was first used for work (1=January … 12=December). Prorates the deduction to active months only.",
+    )
+    # ── Teacher / Civil-servant specific (§9 EStG) ──────────────────────────
+    teacher_materials: float = Field(
+        0.0,
+        ge=0,
+        description="Unterrichtsmaterialien: books, worksheets, laminators, stationery (teachers/Beamte only)",
+    )
+    double_household_costs_per_month: float = Field(
+        0.0,
+        ge=0,
+        le=1_500,
+        description="Monthly accommodation costs for the second home near workplace (Doppelte Haushaltsführung, capped at €1,000/month)",
+    )
+    double_household_months: int = Field(
+        0,
+        ge=0,
+        le=12,
+        description="Number of months the double household was maintained in the tax year",
     )
 
 

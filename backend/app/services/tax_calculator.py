@@ -61,6 +61,20 @@ class DeductionsInput:
     other_work_expenses: float = 0.0
     union_fees: float = 0.0
     loss_carry_forward: float = 0.0  # §10d EStG — Verlustvortrag from prior years
+    # Häusliches Arbeitszimmer
+    home_office_type: str = "pauschale"  # 'pauschale' | 'arbeitszimmer'
+    arbeitszimmer_mittelpunkt: bool = False
+    apartment_sqm: float = 0.0
+    office_sqm: float = 0.0
+    monthly_warm_rent: float = 0.0
+    your_rent_share_pct: float = 100.0  # 0–100
+    arbeitszimmer_start_month: int = (
+        1  # 1=Jan … 12=Dec; prorates the deduction to active months
+    )
+    # Teacher / civil-servant specific
+    teacher_materials: float = 0.0
+    double_household_costs_per_month: float = 0.0
+    double_household_months: int = 0
 
 
 @dataclass
@@ -86,6 +100,9 @@ class PersonalInput:
     is_full_year_resident: bool = True
     is_disabled: bool = False
     disability_grade: int = 0
+    occupation_type: str = (
+        "employee"  # 'employee' | 'teacher_civil_servant' | 'freelancer'
+    )
 
 
 @dataclass
@@ -250,7 +267,7 @@ def calculate_kirchensteuer(
     return int(tax * rate)
 
 
-def calculate_werbungskosten(d: DeductionsInput, p: TaxYearParameter) -> tuple:
+def calculate_werbungskosten(d: DeductionsInput, p: TaxYearParameter) -> float:
     """
     Actual Werbungskosten from employment-related expenses.
     Pauschale applies if actual (excluding union fees) is lower.
@@ -259,17 +276,56 @@ def calculate_werbungskosten(d: DeductionsInput, p: TaxYearParameter) -> tuple:
     ADDITIONALLY to the Werbungskosten-Pauschale — they are no longer "eaten"
     by the Pauschale if total WK does not exceed it.
 
-    Returns (werbungskosten_used, union_fees_used) as separate values so the
-    caller can record them individually if needed.
+    Supports two home-office modes:
+      • 'pauschale' — €6/day flat rate, capped at 210 days (default)
+      • 'arbeitszimmer' — proportional rent for a dedicated room (only when the
+        home is the Mittelpunkt of all professional activity). The user gets
+        max(actual proportional rent, Jahrespauschale of €1,260).
+
+    Also handles teacher/civil-servant deductions:
+      • teacher_materials — books, worksheets, laminators, etc.
+      • double_household — monthly costs capped at €1,000/month (§9 Abs.1 Nr.5 EStG)
     """
     commute = d.commute_km * p.pendlerpauschale_per_km * d.commute_days
-    home_office = min(d.home_office_days, p.homeoffice_max_days) * p.homeoffice_per_day
+
+    # Home-office component
+    if d.home_office_type == "arbeitszimmer" and d.arbeitszimmer_mittelpunkt:
+        # Proportional rent deduction (§9 Abs.5 / §4 Abs.5 Nr.6b EStG)
+        # Prorate to months actually used (start_month 1=Jan → 12 months, 7=Jul → 6, 12=Dec → 1)
+        months_active = 13 - max(1, min(12, d.arbeitszimmer_start_month))
+        if d.apartment_sqm > 0 and d.office_sqm > 0:
+            ratio = min(d.office_sqm / d.apartment_sqm, 1.0)
+            annual_proportional = (
+                d.monthly_warm_rent
+                * months_active
+                * ratio
+                * (d.your_rent_share_pct / 100.0)
+            )
+        else:
+            annual_proportional = 0.0
+        # Jahrespauschale floor prorated to active months
+        jahrespauschale = (
+            p.homeoffice_max_days * p.homeoffice_per_day * (months_active / 12.0)
+        )
+        home_office = max(annual_proportional, jahrespauschale)
+    else:
+        home_office = (
+            min(d.home_office_days, p.homeoffice_max_days) * p.homeoffice_per_day
+        )
+
+    # Teacher/civil-servant extras (§9 EStG Werbungskosten)
+    double_hh = (
+        min(d.double_household_costs_per_month, 1_000.0) * d.double_household_months
+    )
+
     actual_base = (
         commute
         + home_office
         + d.work_equipment
         + d.work_training
         + d.other_work_expenses
+        + d.teacher_materials
+        + double_hh
     )
     # Step 1: apply Pauschale floor to base deductions (excluding union fees)
     wk_base = max(actual_base, p.werbungskosten_pauschale)

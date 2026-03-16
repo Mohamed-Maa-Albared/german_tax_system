@@ -37,7 +37,7 @@ export default function TaxWizard() {
         <div className="max-w-2xl mx-auto">
             <ProgressBar currentStep={currentStep} />
 
-            <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+            <div className="bg-white dark:bg-sn-card rounded-2xl border border-gray-200 dark:border-white/5 p-6 shadow-sm dark:shadow-none">
                 {currentStep === 0 && <PersonalDetails onNext={handleNext} />}
                 {currentStep === 1 && <EmploymentIncome onNext={handleNext} onBack={handleBack} />}
                 {currentStep === 2 && <OtherIncome onNext={handleNext} onBack={handleBack} />}

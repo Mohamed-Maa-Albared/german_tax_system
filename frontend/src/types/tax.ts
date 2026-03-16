@@ -11,6 +11,7 @@ export interface PersonalData {
     isFullYearResident?: boolean
     isDisabled?: boolean
     disabilityGrade?: number            // 0 = none, 25–30–50–60–70–80–90–100 = Grad der Behinderung
+    occupationType?: 'employee' | 'teacher_civil_servant' | 'freelancer'
 }
 
 export interface EmploymentData {
@@ -53,6 +54,18 @@ export interface DeductionsData {
     workTraining?: number    // courses, books, professional education
     unionFees?: number       // Gewerkschaftsbeiträge
     lossCarryForward?: number  // §10d EStG — Verlustvortrag from prior years
+    // Häusliches Arbeitszimmer (§4 Abs.5 Nr.6b / §9 Abs.5 EStG)
+    homeOfficeType?: 'pauschale' | 'arbeitszimmer'
+    arbeitszimmerMittelpunkt?: boolean   // is home the Mittelpunkt of all professional activity?
+    apartmentSqm?: number                // total apartment floor area in m²
+    officeSqm?: number                   // dedicated office room floor area in m²
+    monthlyWarmRent?: number             // total monthly warm rent (€)
+    yourRentSharePct?: number            // your % share of rent (0–100; 100 if you pay alone)
+    arbeitszimmerStartMonth?: number     // month room was first used for work (1=Jan … 12=Dec); prorates the deduction
+    // Teacher / civil-servant specific
+    teacherMaterials?: number            // Unterrichtsmaterialien: books, worksheets, etc.
+    doubleHouseholdCostsPerMonth?: number  // Doppelte Haushaltsführung monthly costs (€1,000/month cap)
+    doubleHouseholdMonths?: number         // number of months maintained
 }
 
 export interface SpecialExpensesData {

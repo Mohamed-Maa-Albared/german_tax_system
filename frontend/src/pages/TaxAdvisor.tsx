@@ -120,6 +120,7 @@ function buildUserContext(store: StoreType) {
         work_training: deductions.workTraining ?? 0,
         other_work_expenses: deductions.otherWorkExpenses,
         union_fees: deductions.unionFees ?? 0,
+        loss_carry_forward: deductions.lossCarryForward ?? 0,
         // Special expenses
         pension_contributions: specialExpenses.pensionContributions,
         health_insurance_contributions: specialExpenses.healthInsuranceContributions,
@@ -129,7 +130,7 @@ function buildUserContext(store: StoreType) {
         medical_costs: specialExpenses.medicalCosts ?? 0,
         childcare_costs: specialExpenses.childcareCosts,
         alimony_paid: specialExpenses.alimonyPaid,
-        church_tax_prior_year: specialExpenses.churchTaxPriorYear,
+        church_fees_paid: specialExpenses.churchTaxPriorYear ?? 0,
         // Results
         zve: result?.zve,
         total_tax: result?.total_tax,

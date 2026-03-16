@@ -17,10 +17,12 @@ interface TaxBreakdownProps {
 
 function Divider({ label }: { label: string }) {
     return (
-        <div className="flex items-center gap-3 my-4">
-            <div className="h-px flex-1 bg-gray-100" />
-            <span className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">{label}</span>
-            <div className="h-px flex-1 bg-gray-100" />
+        <div className="relative flex items-center gap-3 mt-5 mb-3 pl-4">
+            <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-brand-500 dark:bg-brand-400 rounded-full" />
+            <span className="font-mono text-[10px] font-bold text-brand-600 dark:text-brand-400 uppercase tracking-widest">
+                // {label}
+            </span>
+            <div className="h-px flex-1 bg-gray-100 dark:bg-white/5" />
         </div>
     )
 }
@@ -45,27 +47,27 @@ function Row({
         <div
             className={`flex justify-between items-start rounded-lg py-2 px-3 transition-colors ${highlight
                 ? value >= 0
-                    ? 'bg-green-50 border border-green-100'
-                    : 'bg-red-50 border border-red-100'
-                : 'hover:bg-gray-50'
+                    ? 'bg-green-50 dark:bg-green-950/30 border border-green-100 dark:border-green-900/40'
+                    : 'bg-red-50 dark:bg-red-950/30 border border-red-100 dark:border-red-900/40'
+                : 'hover:bg-gray-50 dark:hover:bg-white/3'
                 } ${indent ? 'ml-3' : ''}`}
         >
             <div className="flex-1">
-                <span className={`text-sm leading-snug ${bold ? 'font-semibold text-gray-800' : 'text-gray-600'}`}>
+                <span className={`text-sm leading-snug ${bold ? 'font-semibold text-gray-800 dark:text-slate-200' : 'text-gray-600 dark:text-slate-400'}`}>
                     {label}
                 </span>
-                {subtext && <p className="text-xs text-gray-400 mt-0.5">{subtext}</p>}
+                {subtext && <p className="text-xs text-gray-400 dark:text-slate-500 mt-0.5">{subtext}</p>}
             </div>
             <span
                 className={`text-sm font-medium ml-4 tabular-nums shrink-0 ${highlight
                     ? value >= 0
-                        ? 'text-green-700 font-bold'
-                        : 'text-red-600 font-bold'
+                        ? 'text-green-700 dark:text-emerald-400 font-bold'
+                        : 'text-red-600 dark:text-red-400 font-bold'
                     : bold
-                        ? 'text-gray-800 font-semibold'
+                        ? 'text-gray-800 dark:text-slate-200 font-semibold'
                         : value < 0
-                            ? 'text-green-600'
-                            : 'text-gray-700'
+                            ? 'text-green-600 dark:text-emerald-400'
+                            : 'text-gray-700 dark:text-slate-300'
                     }`}
             >
                 {formatCurrency(value)}
@@ -106,13 +108,13 @@ function SummaryCard({
     }
     return (
         <div
-            className={`relative bg-white rounded-xl border border-gray-100 border-t-4 ${topBorder[accent]} px-4 py-3 cursor-default shadow-sm`}
+            className={`relative bg-white dark:bg-sn-card rounded-xl border border-gray-100 dark:border-white/5 border-t-4 ${topBorder[accent]} px-4 py-3 cursor-default shadow-sm dark:shadow-none`}
             onMouseEnter={() => setShow(true)}
             onMouseLeave={() => setShow(false)}
         >
-            <p className={`text-[11px] font-semibold uppercase tracking-wider ${labelColor[accent]}`}>{label}</p>
-            <p className="text-2xl font-bold text-gray-900 mt-1 tabular-nums leading-tight">{value}</p>
-            {sub && <p className="text-xs text-gray-400 mt-0.5 truncate">{sub}</p>}
+            <p className={`text-[11px] font-mono font-semibold uppercase tracking-wider ${labelColor[accent]}`}>{label}</p>
+            <p className="text-2xl font-heading font-bold text-gray-900 dark:text-slate-100 mt-1 tabular-nums leading-tight">{value}</p>
+            {sub && <p className="text-xs text-gray-400 dark:text-slate-500 mt-0.5 truncate">{sub}</p>}
             {tooltip && show && (
                 <div className="absolute z-20 bottom-full left-0 mb-2 w-60 bg-gray-900 text-white text-xs rounded-xl px-3 py-2.5 shadow-2xl leading-relaxed pointer-events-none">
                     {tooltip}
@@ -168,12 +170,12 @@ function FlowRow({
             <div className="flex items-center gap-3 py-1">
                 {/* Label — right-aligned in a fixed-width slot */}
                 <div className="w-32 shrink-0 text-right">
-                    <span className={`text-sm leading-tight ${bold ? 'font-semibold text-gray-900' : 'text-gray-500'}`}>
+                    <span className={`text-sm leading-tight ${bold ? 'font-semibold text-gray-900 dark:text-slate-100' : 'text-gray-500 dark:text-slate-400'}`}>
                         {label}
                     </span>
                 </div>
                 {/* Animated proportional bar */}
-                <div className="flex-1 h-4 bg-gray-100 rounded-full overflow-hidden">
+                <div className="flex-1 h-4 bg-gray-100 dark:bg-white/5 rounded-full overflow-hidden">
                     <div
                         className={`h-full rounded-full ${barColor}`}
                         style={{
@@ -184,14 +186,14 @@ function FlowRow({
                 </div>
                 {/* Euro amount */}
                 <div className="w-24 shrink-0 text-right">
-                    <span className={`text-sm tabular-nums ${bold ? 'font-semibold text-gray-900' : negative ? 'text-red-500' : 'text-gray-700'
+                    <span className={`text-sm tabular-nums ${bold ? 'font-semibold text-gray-900 dark:text-slate-100' : negative ? 'text-red-500' : 'text-gray-700 dark:text-slate-300'
                         }`}>
                         {negative ? '−' : ''}{formatCurrency(value)}
                     </span>
                 </div>
                 {/* Percentage badge */}
                 <div className="w-10 shrink-0 text-right">
-                    <span className="text-xs text-gray-400 tabular-nums">{pct}%</span>
+                    <span className="text-xs text-gray-400 dark:text-slate-500 tabular-nums">{pct}%</span>
                 </div>
             </div>
             {/* Fixed-height description area — opacity transition prevents layout shift */}
@@ -266,9 +268,9 @@ export default function TaxBreakdownComponent({ breakdown: b }: TaxBreakdownProp
             </div>
 
             {/* ── Income flow waterfall ── */}
-            <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
+            <div className="bg-white dark:bg-sn-card rounded-2xl border border-gray-100 dark:border-white/5 p-5 shadow-sm dark:shadow-none">
                 <div className="flex items-baseline justify-between mb-3">
-                    <h3 className="text-sm font-semibold text-gray-800">How your income is taxed</h3>
+                    <h3 className="text-sm font-semibold text-gray-800 dark:text-slate-200">How your income is taxed</h3>
                     <span className="text-xs text-gray-400">hover any row for details</span>
                 </div>
                 <div>
@@ -332,8 +334,8 @@ export default function TaxBreakdownComponent({ breakdown: b }: TaxBreakdownProp
 
             {/* ── Tax components bar chart ── */}
             {chartData.length > 0 && (
-                <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
-                    <h3 className="text-sm font-semibold text-gray-800 mb-4">Tax component breakdown</h3>
+                <div className="bg-white dark:bg-sn-card rounded-2xl border border-gray-100 dark:border-white/5 p-5 shadow-sm dark:shadow-none">
+                    <h3 className="text-sm font-semibold text-gray-800 dark:text-slate-200 mb-4">Tax component breakdown</h3>
                     <ResponsiveContainer width="100%" height={chartData.length > 2 ? 160 : 100}>
                         <BarChart data={chartData} layout="vertical" margin={{ left: 0, right: 20 }}>
                             <XAxis
@@ -366,7 +368,7 @@ export default function TaxBreakdownComponent({ breakdown: b }: TaxBreakdownProp
             )}
 
             {/* ── Detailed breakdown ── */}
-            <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
+            <div className="bg-white dark:bg-sn-card rounded-2xl border border-gray-100 dark:border-white/5 p-5 shadow-sm dark:shadow-none">
                 <Divider label="Income" />
                 {(b.employment_gross ?? 0) > 0 && (
                     <Row label="Employment income (gross)" value={b.employment_gross!} />
@@ -447,7 +449,7 @@ export default function TaxBreakdownComponent({ breakdown: b }: TaxBreakdownProp
                 {b.capital_tax_flat > 0 && (
                     <Row label="Investment flat tax (Abgeltungsteuer)" value={b.capital_tax_flat} indent />
                 )}
-                <div className="border-t border-gray-100 mt-2 pt-1">
+                <div className="border-t border-gray-100 dark:border-white/5 mt-2 pt-1">
                     <Row label="Total tax" value={b.total_tax} bold />
                 </div>
 
@@ -464,7 +466,7 @@ export default function TaxBreakdownComponent({ breakdown: b }: TaxBreakdownProp
                 {(b.capital_tax_withheld ?? 0) > 0 && (
                     <Row label="Investment tax withheld by bank" value={b.capital_tax_withheld!} indent />
                 )}
-                <div className="border-t border-gray-100 mt-2 pt-1">
+                <div className="border-t border-gray-100 dark:border-white/5 mt-2 pt-1">
                     <Row label="Total withheld" value={b.total_withheld} bold />
                 </div>
 
@@ -487,15 +489,18 @@ export default function TaxBreakdownComponent({ breakdown: b }: TaxBreakdownProp
 
             {/* ── Tax saving suggestions ── */}
             {b.suggestions && b.suggestions.length > 0 && (
-                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
-                    <h3 className="text-sm font-semibold text-amber-800 mb-2">💡 Tax Saving Tips</h3>
-                    <ul className="space-y-1">
-                        {b.suggestions.map((s, i) => (
-                            <li key={i} className="text-sm text-amber-700">
-                                • {s}
-                            </li>
-                        ))}
-                    </ul>
+                <div className="relative overflow-hidden bg-white dark:bg-sn-card rounded-2xl border border-amber-200/60 dark:border-amber-500/20 p-5 shadow-sm dark:shadow-none">
+                    <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-amber-400 dark:bg-amber-500 rounded-l-2xl" />
+                    <div className="pl-3">
+                        <p className="font-mono text-[10px] font-bold text-amber-600 dark:text-amber-500 uppercase tracking-widest mb-2">// Tax Saving Tips</p>
+                        <ul className="space-y-1.5">
+                            {b.suggestions.map((s, i) => (
+                                <li key={i} className="text-sm text-amber-800 dark:text-amber-300 leading-relaxed">
+                                    • {s}
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
                 </div>
             )}
         </div>

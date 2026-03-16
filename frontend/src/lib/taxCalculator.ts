@@ -105,16 +105,55 @@ function calculateKirchensteuer(
  * Calculate total Werbungskosten (§9 EStG).
  * 2026 §9a EStG rule: Gewerkschaftsbeiträge (union fees) are deductible
  * ADDITIONALLY to the Werbungskosten-Pauschale — never eaten by the Pauschale.
+ *
+ * Supports two home-office modes:
+ *   'pauschale'     — €6/day flat rate, capped at 210 days
+ *   'arbeitszimmer' — proportional rent for a dedicated room (Mittelpunkt only);
+ *                     uses max(actual_proportional_rent, Jahrespauschale €1,260)
+ *
+ * Also handles teacher/civil-servant extras:
+ *   teacherMaterials          — Unterrichtsmaterialien (§9 EStG)
+ *   doubleHouseholdCosts      — Doppelte Haushaltsführung capped at €1,000/month
  */
 function calcWerbungskosten(d: DeductionsData, p: TaxYearParameters): number {
     const commute = d.commuteKm * d.commuteDays * p.pendlerpauschale_per_km
-    const days = Math.min(d.homeOfficeDays, p.homeoffice_max_days)
-    const homeOffice = days * p.homeoffice_per_day
+
+    // Home-office component
+    let homeOffice: number
+    if (d.homeOfficeType === 'arbeitszimmer' && d.arbeitszimmerMittelpunkt) {
+        // Proportional rent (§9 Abs.5 / §4 Abs.5 Nr.6b EStG)
+        // Prorate by months active (start month 1=Jan → 12 months, 7=Jul → 6, 12=Dec → 1)
+        const startMonth = d.arbeitszimmerStartMonth || 1
+        const monthsActive = 13 - startMonth  // 1–12
+        let annualProportional = 0
+        if ((d.apartmentSqm || 0) > 0 && (d.officeSqm || 0) > 0) {
+            const ratio = Math.min((d.officeSqm || 0) / (d.apartmentSqm || 1), 1.0)
+            annualProportional = (d.monthlyWarmRent || 0) * monthsActive * ratio * ((d.yourRentSharePct || 100) / 100)
+        }
+        // Jahrespauschale floor prorated to active months
+        const jahrespauschale = p.homeoffice_max_days * p.homeoffice_per_day * (monthsActive / 12)
+        homeOffice = Math.max(annualProportional, jahrespauschale)
+    } else {
+        const days = Math.min(d.homeOfficeDays, p.homeoffice_max_days)
+        homeOffice = days * p.homeoffice_per_day
+    }
+
+    // Teacher/civil-servant extras
+    const doubleHh = Math.min(d.doubleHouseholdCostsPerMonth || 0, 1_000) * (d.doubleHouseholdMonths || 0)
+
     // Base deductions (compared against Pauschale)
-    const baseActual = commute + homeOffice + d.otherWorkExpenses + (d.workEquipment ?? 0) + (d.workTraining ?? 0)
+    const baseActual = (
+        commute
+        + homeOffice
+        + (d.otherWorkExpenses || 0)
+        + (d.workEquipment || 0)
+        + (d.workTraining || 0)
+        + (d.teacherMaterials || 0)
+        + doubleHh
+    )
     const wkBase = Math.max(baseActual, p.werbungskosten_pauschale)
     // Union fees always added on top of the Pauschale floor
-    return wkBase + (d.unionFees ?? 0)
+    return wkBase + (d.unionFees || 0)
 }
 
 function calcSonderausgaben(

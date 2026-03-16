@@ -12,7 +12,7 @@ export default function Review({ onSubmit, onBack }: Props) {
 
     return (
         <div className="space-y-6">
-            <h2 className="text-xl font-semibold text-gray-800">Review Your Information</h2>
+            <h2 className="font-heading font-semibold text-xl text-gray-800 dark:text-slate-200">Review Your Information</h2>
 
             <Section title="Personal">
                 <Row k="Tax Year" v={String(personal.taxYear)} />

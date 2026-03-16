@@ -27,6 +27,7 @@ export default function SpecialExpenses({ onNext, onBack }: Props) {
     const { personal } = useTaxStore()
     const isJoint = personal.isMarried
     const numChildren = personal.numChildren
+    const isBeamte = personal.occupationType === 'teacher_civil_servant'
     const riesterCap = isJoint ? 4_200 : 2_100
     const pensionCap = isJoint ? 61_652 : 30_826
     // Childcare: entered as total for all children, cap is per-child €6,000 actual (§10 EStG)
@@ -51,7 +52,7 @@ export default function SpecialExpenses({ onNext, onBack }: Props) {
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
-                    <h2 className="text-xl font-semibold text-gray-800">
+                    <h2 className="font-heading font-semibold text-xl text-gray-800 dark:text-slate-200">
                         Special Expenses <span className="text-sm font-normal text-gray-500">(Sonderausgaben)</span>
                     </h2>
                     <p className="text-sm text-gray-500 mt-1">
@@ -63,10 +64,53 @@ export default function SpecialExpenses({ onNext, onBack }: Props) {
                 </div>
             </div>
 
+            {/* ── Beamte PKV + 2026 warning ─────────────────────────────────── */}
+            {isBeamte && (
+                <div className="space-y-3">
+                    {/* PKV full premium note */}
+                    <div className="relative overflow-hidden rounded-xl border border-sn-cyan/30 dark:border-sn-cyan/20 bg-cyan-50/60 dark:bg-cyan-950/20 p-4">
+                        <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-sn-cyan rounded-l-xl" />
+                        <div className="pl-2">
+                            <p className="font-mono text-[10px] uppercase tracking-widest text-sn-cyan mb-1">
+                                // PKV — Beamte rule
+                            </p>
+                            <p className="text-xs font-semibold text-cyan-900 dark:text-cyan-200 mb-0.5">
+                                Enter your FULL private health insurance premium
+                            </p>
+                            <p className="text-xs text-cyan-800 dark:text-cyan-300/80 leading-relaxed">
+                                As a Beamter/Beamtin, there is no employer contribution to your PKV premium — you pay the
+                                entire amount yourself. Your <strong>full annual PKV premium</strong> is deductible under
+                                §10 Abs.1 Nr.3 EStG. Enter the total from your annual PKV invoice, not just an employee share.
+                            </p>
+                        </div>
+                    </div>
+                    {/* 2026 Mindestvorsorgepauschale warning */}
+                    <div className="relative overflow-hidden rounded-xl border border-amber-300/60 dark:border-amber-600/30 bg-amber-50 dark:bg-amber-950/20 p-4">
+                        <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-amber-400 dark:bg-amber-500 rounded-l-xl" />
+                        <div className="pl-2">
+                            <p className="font-mono text-[10px] uppercase tracking-widest text-amber-600 dark:text-amber-500 mb-1">
+                                // 2026 change
+                            </p>
+                            <p className="text-xs font-semibold text-amber-900 dark:text-amber-200 mb-0.5">
+                                Mindestvorsorgepauschale abolished — your monthly withholding may be higher this year
+                            </p>
+                            <p className="text-xs text-amber-800 dark:text-amber-300/80 leading-relaxed">
+                                Until 2025, Beamte with private insurance benefited from a simplified withholding rule
+                                (Mindestvorsorgepauschale) that capped monthly Lohnsteuer deductions. This has been
+                                replaced in 2026. Your employer now uses the actual deductible PKV premium for monthly
+                                withholding — which may mean <strong>temporarily higher deductions</strong> until you file
+                                your return. Filing your Einkommensteuererklärung will reconcile this and refund any
+                                overpayment. This calculator already accounts for the full PKV deduction.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* Pension */}
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                         Pension Contributions ({unit})
                         <FieldHint
                             explanation="Contributions to the statutory pension insurance (Gesetzliche Rentenversicherung). As an employee you pay half; your employer pays the other half. Both halves are partly deductible. Up to €30,826 (single) / €61,652 (joint filing) is fully deductible in 2026."
@@ -79,7 +123,7 @@ export default function SpecialExpenses({ onNext, onBack }: Props) {
                         min={0}
                         step="any"
                         {...register('pensionContributions', { valueAsNumber: true, min: 0 })}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
                         placeholder="0"
                     />
                     <AIHint term="Rentenversicherung" />
@@ -87,12 +131,16 @@ export default function SpecialExpenses({ onNext, onBack }: Props) {
 
                 {/* Health insurance */}
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                         Health Insurance Contributions ({unit})
                         <FieldHint
-                            explanation="Premiums for your statutory (GKV) or private (PKV) health insurance covering basic health care. The basic contribution is 100% deductible. Sick-pay cover (Krankengeld) portion is not. For GKV members: your own share including the average supplemental premium."
+                            explanation={isBeamte
+                                ? "As a Beamter/in, enter your FULL private health insurance (PKV) premium. There is no employer contribution — you pay 100% yourself, and 100% is deductible under §10 Abs.1 Nr.3 EStG. Use the total from your annual PKV invoice. Do not add a nursing care element here — enter that separately in the Nursing Care field below."
+                                : "Premiums for your statutory (GKV) or private (PKV) health insurance covering basic health care. The basic contribution is 100% deductible. Sick-pay cover (Krankengeld) portion is not. For GKV members: your own share including the average supplemental premium."}
                             germanTerm="Krankenversicherungsbeiträge (§10 Abs.1 Nr.3 EStG)"
-                            whereToFind="Box 23 of your Lohnsteuerbescheinigung (for GKV members). For PKV, use your annual premium statement from your insurer."
+                            whereToFind={isBeamte
+                                ? "Your annual PKV premium statement (Beitragsrechnung) from your private insurer. Use the total health component only — exclude the Pflegezusatz if listed separately."
+                                : "Box 23 of your Lohnsteuerbescheinigung (for GKV members). For PKV, use your annual premium statement from your insurer."}
                         />
                     </label>
                     <input
@@ -100,15 +148,17 @@ export default function SpecialExpenses({ onNext, onBack }: Props) {
                         min={0}
                         step="any"
                         {...register('healthInsuranceContributions', { valueAsNumber: true, min: 0 })}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
                         placeholder="0"
                     />
-                    <p className="text-xs text-gray-400 mt-1">GKV/PKV premiums — fully deductible (§10 EStG)</p>
+                    <p className="text-xs text-gray-400 mt-1">
+                        {isBeamte ? 'Full PKV premium — 100% deductible (§10 EStG)' : 'GKV/PKV premiums — fully deductible (§10 EStG)'}
+                    </p>
                 </div>
 
                 {/* Long-term care */}
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                         Nursing Care Insurance — Full Contribution ({unit})
                         <FieldHint
                             explanation="Your total annual contributions to the statutory nursing care insurance (Pflegeversicherung), including: (1) the base contribution — 3.4% of gross salary, half paid by you, half by employer; and (2) the childless surcharge — an extra 0.6% deducted from your pay only if you are 23 or older and have no children. Enter the sum of both employee-side amounts if applicable. The employer's half of the base contribution is also deductible — add it in too."
@@ -121,7 +171,7 @@ export default function SpecialExpenses({ onNext, onBack }: Props) {
                         min={0}
                         step="any"
                         {...register('longTermCareInsurance', { valueAsNumber: true, min: 0 })}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
                         placeholder="0"
                     />
                     <p className="text-xs text-gray-400 mt-1">
@@ -131,7 +181,7 @@ export default function SpecialExpenses({ onNext, onBack }: Props) {
 
                 {/* Riester */}
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                         Riester Pension Contributions ({unit})
                         <FieldHint
                             explanation="Contributions to a Riester pension contract — a German government-subsidised private pension. You can deduct up to €2,100/year (€4,200 for joint filing). You may also receive direct government subsidies (Zulagen)."
@@ -144,7 +194,7 @@ export default function SpecialExpenses({ onNext, onBack }: Props) {
                         min={0}
                         step="any"
                         {...register('riesterContributions', { valueAsNumber: true, min: 0 })}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
                         placeholder="0"
                     />
                     <p className="text-xs text-gray-400 mt-1">Deductible up to €2,100/year (€4,200 joint filing)</p>
@@ -158,7 +208,7 @@ export default function SpecialExpenses({ onNext, onBack }: Props) {
 
                 {/* Donations */}
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                         Charitable Donations ({unit})
                         <FieldHint
                             explanation="Donations to officially recognised charitable organisations (gemeinnützige Vereine, registered charities). Donations to political parties are also partially deductible. Capped at 20% of your total income."
@@ -171,7 +221,7 @@ export default function SpecialExpenses({ onNext, onBack }: Props) {
                         min={0}
                         step="any"
                         {...register('donations', { valueAsNumber: true, min: 0 })}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
                         placeholder="0"
                     />
                     <p className="text-xs text-gray-400 mt-1">Capped at 20% of your total income</p>
@@ -179,7 +229,7 @@ export default function SpecialExpenses({ onNext, onBack }: Props) {
 
                 {/* Alimony */}
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                         Alimony / Maintenance Paid ({unit})
                         <FieldHint
                             explanation="Alimony paid to an ex-spouse (Realsplitting). Deductible up to €13,805/year, but only if your ex-spouse agrees to declare it as income (by signing Anlage U). Child support (Unterhalt for children) is NOT deductible here."
@@ -192,7 +242,7 @@ export default function SpecialExpenses({ onNext, onBack }: Props) {
                         min={0}
                         step="any"
                         {...register('alimonyPaid', { valueAsNumber: true, min: 0 })}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
                         placeholder="0"
                     />
                     <p className="text-xs text-gray-400 mt-1">Ex-spouse spousal support only (not child support). Max €13,805</p>
@@ -206,7 +256,7 @@ export default function SpecialExpenses({ onNext, onBack }: Props) {
 
                 {/* Childcare */}
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                         Childcare Costs ({unit})
                         <FieldHint
                             explanation="Costs for childcare for children under 14 — nursery (Kita), after-school care (Hort), nanny. 80% of actual costs are deductible, up to a maximum of €4,800 per child per year (i.e. max actual cost claimable is €6,000/child)."
@@ -219,7 +269,7 @@ export default function SpecialExpenses({ onNext, onBack }: Props) {
                         min={0}
                         step="any"
                         {...register('childcareCosts', { valueAsNumber: true, min: 0 })}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
                         placeholder="0"
                     />
                     <p className="text-xs text-gray-400 mt-1">80% deductible, max €4,800/child under 14 (§10 EStG)</p>
@@ -235,7 +285,7 @@ export default function SpecialExpenses({ onNext, onBack }: Props) {
 
                 {/* Medical costs */}
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                         Medical &amp; Healthcare Costs ({unit})
                         <FieldHint
                             explanation="Out-of-pocket medical expenses not covered by health insurance — prescription co-pays, glasses, dental treatment, physiotherapy, etc. Only the amount above your personal 'reasonable burden' threshold (zumutbare Belastung) is deductible. The threshold depends on your income and family situation — typically 1-7% of total income."
@@ -248,7 +298,7 @@ export default function SpecialExpenses({ onNext, onBack }: Props) {
                         min={0}
                         step="any"
                         {...register('medicalCosts', { valueAsNumber: true, min: 0 })}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
                         placeholder="0"
                     />
                     <p className="text-xs text-gray-400 mt-1">

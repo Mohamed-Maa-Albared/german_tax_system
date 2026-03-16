@@ -33,26 +33,29 @@ export default function PersonalDetails({ onNext }: Props) {
     return (
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             <div>
-                <h2 className="text-xl font-semibold text-gray-800">Personal Details</h2>
+                <h2 className="font-heading font-semibold text-xl text-gray-800 dark:text-slate-200">Personal Details</h2>
                 <p className="text-sm text-gray-500 mt-1">
                     Tell us about yourself so we can apply the right tax rules.
                 </p>
             </div>
 
             {/* Multi-year banner */}
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-900">
-                <p className="font-semibold mb-1">📅 You can file for multiple years</p>
-                <p className="text-amber-800 text-xs leading-relaxed">
-                    German law allows you to voluntarily file your tax return up to 4 years back.
-                    Run this calculator once per year. Each year's rules may differ slightly —
-                    our calculator uses 2026 parameters as the closest available estimate for all years.
-                </p>
+            <div className="relative overflow-hidden rounded-xl border border-brand-600/20 dark:border-brand-600/30 bg-gradient-to-r from-brand-50 to-white dark:from-sn-surface dark:to-sn-card p-4">
+                <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-brand-600 rounded-l-xl" />
+                <div className="pl-2">
+                    <p className="font-mono text-[10px] uppercase tracking-widest text-brand-600 dark:text-brand-400 mb-1">// Voluntary filing</p>
+                    <p className="text-sm font-heading font-semibold text-gray-800 dark:text-slate-200 mb-0.5">You can file for multiple years</p>
+                    <p className="text-xs text-gray-500 dark:text-slate-400 leading-relaxed">
+                        Run this calculator once per year — up to 4 years back. Each year's rules may differ slightly;
+                        we use 2026 parameters as the closest available estimate for all years.
+                    </p>
+                </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* Tax year */}
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                         Tax Year
                         <FieldHint
                             explanation="The year your income was earned. You file your return in the following year (e.g. file your 2025 return in 2026). You can file up to 4 years back voluntarily."
@@ -62,7 +65,7 @@ export default function PersonalDetails({ onNext }: Props) {
                     </label>
                     <select
                         {...register('taxYear', { valueAsNumber: true })}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
                     >
                         {[2022, 2023, 2024, 2025, 2026].map((y) => (
                             <option key={y} value={y}>{y}</option>
@@ -78,7 +81,7 @@ export default function PersonalDetails({ onNext }: Props) {
 
                 {/* Federal state */}
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                         Federal State (Bundesland)
                         <FieldHint
                             explanation="The German state where you live. This affects church tax rates (8% in Bavaria & Baden-Württemberg, 9% elsewhere)."
@@ -88,7 +91,7 @@ export default function PersonalDetails({ onNext }: Props) {
                     </label>
                     <select
                         {...register('federalState')}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
                     >
                         {[
                             ['BY', 'Bayern (Bavaria)'],
@@ -115,7 +118,7 @@ export default function PersonalDetails({ onNext }: Props) {
 
                 {/* Children */}
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                         Number of Children
                         <FieldHint
                             explanation="Children under 18, or up to 25 if in education or vocational training. Each child entitles you to either the child allowance (Kinderfreibetrag) or monthly child benefit (Kindergeld €259/month) — the tax office automatically applies whichever is more beneficial."
@@ -129,7 +132,7 @@ export default function PersonalDetails({ onNext }: Props) {
                         max={20}
                         step={1}
                         {...register('numChildren', { valueAsNumber: true })}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
                     />
                 </div>
 
@@ -173,7 +176,7 @@ export default function PersonalDetails({ onNext }: Props) {
                 {/* Church tax rate — only show when church member */}
                 {isChurchMember && (
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                             Church Tax Rate
                             <FieldHint
                                 explanation="Bavaria and Baden-Württemberg charge 8% church tax on your income tax. All other German states charge 9%."
@@ -183,7 +186,7 @@ export default function PersonalDetails({ onNext }: Props) {
                         </label>
                         <select
                             {...register('churchTaxRateType')}
-                            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+                            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
                         >
                             <option value="high">9% — all states except Bavaria & BW</option>
                             <option value="low">8% — Bavaria (BY) or Baden-Württemberg (BW)</option>
@@ -194,7 +197,7 @@ export default function PersonalDetails({ onNext }: Props) {
                 {/* Disability grade — only show when disabled */}
                 {isDisabled && (
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                             Disability Grade (Grad der Behinderung)
                             <FieldHint
                                 explanation="The official percentage indicating severity of disability. The tax allowance increases with the grade: GdB 25-30 → €384, GdB 35-40 → €620, GdB 45-50 → €860, GdB 55-60 → €1,140, GdB 65-70 → €1,440, GdB 75-80 → €1,780, GdB 85-90 → €2,120, GdB 95-100 → €2,840."
@@ -204,7 +207,7 @@ export default function PersonalDetails({ onNext }: Props) {
                         </label>
                         <select
                             {...register('disabilityGrade', { valueAsNumber: true })}
-                            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+                            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
                         >
                             {[25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100].map((g) => (
                                 <option key={g} value={g}>GdB {g}</option>
@@ -212,6 +215,33 @@ export default function PersonalDetails({ onNext }: Props) {
                         </select>
                     </div>
                 )}
+            </div>
+
+            {/* Occupation type — controls teacher/Beamte-specific deduction suggestions */}
+            <div className="relative overflow-hidden rounded-xl border border-brand-600/20 dark:border-brand-600/30 bg-gradient-to-r from-brand-50 to-white dark:from-sn-surface dark:to-sn-card p-4">
+                <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-brand-600 rounded-l-xl" />
+                <div className="pl-2">
+                    <p className="font-mono text-[10px] uppercase tracking-widest text-brand-600 dark:text-brand-400 mb-1">// Occupation type</p>
+                    <label className="block text-sm font-heading font-semibold text-gray-800 dark:text-slate-200 mb-1">
+                        What best describes your occupation?
+                        <FieldHint
+                            explanation="Teachers and Beamte (civil servants) have specific Werbungskosten categories — teaching materials, double household, and different home-office rules. Selecting the right type unlocks these in the Deductions step."
+                            germanTerm="Berufsgruppe / Tätigkeitsart"
+                            whereToFind="Your employment contract or Dienstvertrag states whether you are a Beamter or Angestellter."
+                        />
+                    </label>
+                    <select
+                        {...register('occupationType')}
+                        className="w-full sm:w-80 border border-gray-300 dark:border-white/10 rounded-lg px-3 py-2 text-sm"
+                    >
+                        <option value="employee">Regular employee (Angestellter / Arbeitnehmer)</option>
+                        <option value="teacher_civil_servant">Teacher or civil servant (Lehrer / Beamter)</option>
+                        <option value="freelancer">Freelancer / Self-employed (Selbstständiger)</option>
+                    </select>
+                    <p className="text-xs text-gray-400 dark:text-slate-500 mt-2">
+                        Teachers &amp; Beamte: unlocks teaching materials, Doppelte Haushaltsführung, and tailored home-office options in the next step.
+                    </p>
+                </div>
             </div>
 
             <div className="flex justify-end">

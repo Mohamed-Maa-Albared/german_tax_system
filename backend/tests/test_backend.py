@@ -1357,3 +1357,300 @@ class TestWithheldAmounts:
             }
         )
         assert d_high["refund_or_payment"] > d_low["refund_or_payment"]
+
+
+# ---------------------------------------------------------------------------
+# Häusliches Arbeitszimmer tests
+# ---------------------------------------------------------------------------
+
+
+class TestArbeitszimmer:
+    """Tests for the dedicated home-office room deduction (§9 Abs.5 EStG)."""
+
+    def test_proportional_rent_beats_jahrespauschale(self):
+        """When proportional rent > Jahrespauschale (€1,260), full rent is used."""
+        # 20 m² office in 60 m² apartment (33.3%), €2,400/month warm rent
+        # → annual proportional = 2400 × 12 × (20/60) = 9,600 €
+        d = _scenario(
+            {
+                "deductions": {
+                    "home_office_type": "arbeitszimmer",
+                    "arbeitszimmer_mittelpunkt": True,
+                    "apartment_sqm": 60,
+                    "office_sqm": 20,
+                    "monthly_warm_rent": 2400,
+                    "your_rent_share_pct": 100,
+                    "commute_days": 0,
+                }
+            }
+        )
+        # werbungskosten_used should reflect the 9,600 arbeitszimmer amount
+        assert d["werbungskosten_used"] == pytest.approx(9_600, abs=1)
+
+    def test_jahrespauschale_floor_applied(self):
+        """When proportional rent is very small, the Jahrespauschale €1,260 floor applies."""
+        # 5 m² office in 100 m² apartment (5%), €600/month → annual = 600×12×0.05 = 360 €
+        # Jahrespauschale (1,260) > 360 → 1,260 used
+        d = _scenario(
+            {
+                "deductions": {
+                    "home_office_type": "arbeitszimmer",
+                    "arbeitszimmer_mittelpunkt": True,
+                    "apartment_sqm": 100,
+                    "office_sqm": 5,
+                    "monthly_warm_rent": 600,
+                    "your_rent_share_pct": 100,
+                    "commute_days": 0,
+                }
+            }
+        )
+        assert d["werbungskosten_used"] == pytest.approx(1_260, abs=1)
+
+    def test_shared_apartment_proration(self):
+        """Rent share % correctly reduces the deductible amount."""
+        # 15 m² / 80 m² → 18.75%, €1,200/month, 50% rent share
+        # Annual proportional = 1200 × 12 × (15/80) × 0.50 = 1,350 €
+        d = _scenario(
+            {
+                "deductions": {
+                    "home_office_type": "arbeitszimmer",
+                    "arbeitszimmer_mittelpunkt": True,
+                    "apartment_sqm": 80,
+                    "office_sqm": 15,
+                    "monthly_warm_rent": 1200,
+                    "your_rent_share_pct": 50,
+                    "commute_days": 0,
+                }
+            }
+        )
+        # 1,350 > 1,260 → actual is used
+        assert d["werbungskosten_used"] == pytest.approx(1_350, abs=1)
+
+    def test_not_mittelpunkt_falls_back_to_daily_pauschale(self):
+        """Without Mittelpunkt flag, arbeitszimmer type uses the daily pauschale instead."""
+        d_pauschale = _scenario(
+            {
+                "deductions": {
+                    "home_office_days": 80,
+                    "home_office_type": "pauschale",
+                    "commute_days": 0,
+                }
+            }
+        )
+        d_arbeit_no_mp = _scenario(
+            {
+                "deductions": {
+                    "home_office_days": 80,
+                    "home_office_type": "arbeitszimmer",
+                    "arbeitszimmer_mittelpunkt": False,
+                    "apartment_sqm": 80,
+                    "office_sqm": 15,
+                    "monthly_warm_rent": 2_000,
+                    "commute_days": 0,
+                }
+            }
+        )
+        # Both should yield identical werbungskosten_used (daily pauschale path for both)
+        assert d_pauschale["werbungskosten_used"] == pytest.approx(
+            d_arbeit_no_mp["werbungskosten_used"], abs=1
+        )
+
+    def test_arbeitszimmer_reduces_zve(self):
+        """Higher arbeitszimmer deduction leads to lower ZVE and more refund."""
+        base = _scenario(
+            {
+                "employment": {"gross_salary": 60_000, "lohnsteuer_withheld": 15_000},
+                "deductions": {"commute_days": 0},
+            }
+        )
+        with_arbeit = _scenario(
+            {
+                "employment": {"gross_salary": 60_000, "lohnsteuer_withheld": 15_000},
+                "deductions": {
+                    "home_office_type": "arbeitszimmer",
+                    "arbeitszimmer_mittelpunkt": True,
+                    "apartment_sqm": 70,
+                    "office_sqm": 15,
+                    "monthly_warm_rent": 1_500,
+                    "your_rent_share_pct": 100,
+                    "commute_days": 0,
+                },
+            }
+        )
+        assert with_arbeit["zve"] < base["zve"]
+        assert with_arbeit["refund_or_payment"] > base["refund_or_payment"]
+
+    def test_start_month_prorates_proportional_rent(self):
+        """arbeitszimmer_start_month prorates the deduction to active months only.
+        Room used from July (month 7) = 6 months active.
+        20 m² / 60 m², €2,400/month → full-year = 9,600; half-year = 4,800.
+        """
+        full_year = _scenario(
+            {
+                "deductions": {
+                    "home_office_type": "arbeitszimmer",
+                    "arbeitszimmer_mittelpunkt": True,
+                    "apartment_sqm": 60,
+                    "office_sqm": 20,
+                    "monthly_warm_rent": 2_400,
+                    "your_rent_share_pct": 100,
+                    "arbeitszimmer_start_month": 1,
+                    "commute_days": 0,
+                }
+            }
+        )
+        half_year = _scenario(
+            {
+                "deductions": {
+                    "home_office_type": "arbeitszimmer",
+                    "arbeitszimmer_mittelpunkt": True,
+                    "apartment_sqm": 60,
+                    "office_sqm": 20,
+                    "monthly_warm_rent": 2_400,
+                    "your_rent_share_pct": 100,
+                    "arbeitszimmer_start_month": 7,  # July → 6 months
+                    "commute_days": 0,
+                }
+            }
+        )
+        assert full_year["werbungskosten_used"] == pytest.approx(9_600, abs=1)
+        assert half_year["werbungskosten_used"] == pytest.approx(4_800, abs=1)
+
+    def test_start_month_prorates_jahrespauschale_floor(self):
+        """Jahrespauschale floor is prorated to active months.
+        Full year (start=1): floor = 1,260 > WK-Pauschale (1,230) → used = 1,260.
+        From July (start=7, 6 months): floor = 630 < WK-Pauschale (1,230) → WK-Pauschale wins.
+        Small office so proportional rent is always below the floor.
+        """
+        # 5 m² / 100 m², €600/month → full-year proportional = 360, always < floor
+        full_year = _scenario(
+            {
+                "deductions": {
+                    "home_office_type": "arbeitszimmer",
+                    "arbeitszimmer_mittelpunkt": True,
+                    "apartment_sqm": 100,
+                    "office_sqm": 5,
+                    "monthly_warm_rent": 600,
+                    "your_rent_share_pct": 100,
+                    "arbeitszimmer_start_month": 1,  # 12 months → floor = 1,260
+                    "commute_days": 0,
+                }
+            }
+        )
+        half_year = _scenario(
+            {
+                "deductions": {
+                    "home_office_type": "arbeitszimmer",
+                    "arbeitszimmer_mittelpunkt": True,
+                    "apartment_sqm": 100,
+                    "office_sqm": 5,
+                    "monthly_warm_rent": 600,
+                    "your_rent_share_pct": 100,
+                    "arbeitszimmer_start_month": 7,  # 6 months → floor = 630 < WK-Pauschale 1,230
+                    "commute_days": 0,
+                }
+            }
+        )
+        # Full year: prorated floor 1,260 > WK-Pauschale 1,230 → 1,260 used
+        assert full_year["werbungskosten_used"] == pytest.approx(1_260, abs=1)
+        # Half year: prorated floor 630 < WK-Pauschale 1,230 → WK-Pauschale used
+        assert half_year["werbungskosten_used"] == pytest.approx(1_230, abs=1)
+
+
+# ---------------------------------------------------------------------------
+# Teacher / civil-servant deduction tests
+# ---------------------------------------------------------------------------
+
+
+class TestTeacherDeductions:
+    """Tests for teacher/Beamte-specific deductions (§9 EStG)."""
+
+    def test_teacher_materials_added_to_werbungskosten(self):
+        """Teacher materials are added to Werbungskosten base before Pauschale comparison."""
+        # 1,500 materials alone exceeds the Pauschale (1,230) → actual is used
+        d = _scenario(
+            {
+                "deductions": {
+                    "teacher_materials": 1_500,
+                    "commute_days": 0,
+                }
+            }
+        )
+        assert d["werbungskosten_used"] == pytest.approx(1_500, abs=1)
+
+    def test_teacher_materials_below_pauschale_still_uses_pauschale(self):
+        """Small teacher-materials amount still triggers Pauschale if total is below 1,230."""
+        d = _scenario(
+            {
+                "deductions": {
+                    "teacher_materials": 50,
+                    "commute_days": 0,
+                }
+            }
+        )
+        # 50 € materials alone < 1,230 → Pauschale floor (1,230) applies
+        assert d["werbungskosten_used"] == pytest.approx(1_230, abs=1)
+
+    def test_double_household_capped_at_1000_per_month(self):
+        """Double household costs above €1,000/month are silently capped."""
+        # 1,500 €/month × 3 months → capped to 1,000 × 3 = 3,000 (not 4,500)
+        d = _scenario(
+            {
+                "deductions": {
+                    "double_household_costs_per_month": 1_500,
+                    "double_household_months": 3,
+                    "commute_days": 0,
+                }
+            }
+        )
+        # 3,000 > 1,230 → actual used: 3,000
+        assert d["werbungskosten_used"] == pytest.approx(3_000, abs=1)
+
+    def test_double_household_full_year(self):
+        """Double household for 12 months at €800/month = €9,600 deductible."""
+        d = _scenario(
+            {
+                "deductions": {
+                    "double_household_costs_per_month": 800,
+                    "double_household_months": 12,
+                    "commute_days": 0,
+                }
+            }
+        )
+        assert d["werbungskosten_used"] == pytest.approx(9_600, abs=1)
+
+    def test_teacher_materials_and_double_household_combine(self):
+        """Teacher materials and double household both count toward Werbungskosten."""
+        d = _scenario(
+            {
+                "deductions": {
+                    "teacher_materials": 500,
+                    "double_household_costs_per_month": 800,
+                    "double_household_months": 6,
+                    "commute_days": 0,
+                }
+            }
+        )
+        # 500 + 800×6 = 500 + 4800 = 5,300
+        assert d["werbungskosten_used"] == pytest.approx(5_300, abs=1)
+
+    def test_occupation_type_field_accepted_in_personal(self):
+        """occupation_type field is accepted by the API without error."""
+        resp = client.post(
+            "/api/tax/calculate",
+            json={
+                "personal": {
+                    "occupation_type": "teacher_civil_servant",
+                    "is_married": False,
+                },
+                "employment": {"gross_salary": 50_000, "lohnsteuer_withheld": 10_000},
+                "deductions": {
+                    "teacher_materials": 400,
+                    "commute_days": 200,
+                    "commute_km": 20,  # 20×0.38×200=1,520 + 400=1,920 > 1,230
+                },
+            },
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["werbungskosten_used"] > 1_230  # materials + commute > pauschale

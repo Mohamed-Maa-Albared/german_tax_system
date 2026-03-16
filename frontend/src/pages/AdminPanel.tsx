@@ -412,14 +412,14 @@ export default function AdminPanel() {
     if (!loggedIn) {
         return (
             <div className="max-w-sm mx-auto mt-16">
-                <div className="bg-white rounded-2xl border border-gray-200 p-8 shadow-sm">
+                <div className="bg-white dark:bg-sn-card rounded-2xl border border-gray-200 dark:border-white/5 p-8 shadow-sm dark:shadow-none">
                     <div className="flex items-center gap-3 mb-6">
                         <div className="bg-brand-100 rounded-xl p-2.5">
                             <Shield size={22} className="text-brand-700" />
                         </div>
                         <div>
-                            <h1 className="text-xl font-bold text-gray-800">Admin Panel</h1>
-                            <p className="text-xs text-gray-400">SmartTax Germany</p>
+                            <h1 className="font-heading font-bold text-xl text-gray-800 dark:text-slate-100">Admin Panel</h1>
+                            <p className="text-xs text-gray-400 dark:text-slate-500">SmartTax Germany</p>
                         </div>
                     </div>
                     <form onSubmit={handleLogin} className="space-y-4">
@@ -467,7 +467,7 @@ export default function AdminPanel() {
                         <Shield size={20} className="text-brand-700" />
                     </div>
                     <div>
-                        <h1 className="text-2xl font-bold text-gray-900">Admin Panel</h1>
+                        <h1 className="font-heading font-bold text-2xl text-gray-900 dark:text-slate-100">Admin Panel</h1>
                         <p className="text-sm text-gray-400">SmartTax Germany — system configuration</p>
                     </div>
                 </div>
@@ -515,7 +515,7 @@ export default function AdminPanel() {
                     {health ? (
                         <div className="grid sm:grid-cols-2 gap-4">
                             {/* DB card */}
-                            <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+                            <div className="bg-white dark:bg-sn-card rounded-xl border border-gray-200 dark:border-white/5 p-5 shadow-sm dark:shadow-none">
                                 <div className="flex items-center gap-3 mb-4">
                                     <div className="bg-blue-50 rounded-lg p-2">
                                         <Database size={18} className="text-blue-600" />
@@ -542,7 +542,7 @@ export default function AdminPanel() {
                             </div>
 
                             {/* Ollama card */}
-                            <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+                            <div className="bg-white dark:bg-sn-card rounded-xl border border-gray-200 dark:border-white/5 p-5 shadow-sm dark:shadow-none">
                                 <div className="flex items-center gap-3 mb-4">
                                     <div className="bg-purple-50 rounded-lg p-2">
                                         <Bot size={18} className="text-purple-600" />
@@ -569,7 +569,7 @@ export default function AdminPanel() {
                             </div>
 
                             {/* Quick actions */}
-                            <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm sm:col-span-2">
+                            <div className="bg-white dark:bg-sn-card rounded-xl border border-gray-200 dark:border-white/5 p-5 shadow-sm dark:shadow-none sm:col-span-2">
                                 <p className="font-semibold text-gray-800 mb-3">Quick Actions</p>
                                 <div className="flex flex-wrap gap-2">
                                     <button
@@ -608,7 +608,7 @@ export default function AdminPanel() {
                     )}
 
                     {/* Audit Log */}
-                    <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+                    <div className="bg-white dark:bg-sn-card rounded-xl border border-gray-200 dark:border-white/5 p-5 shadow-sm dark:shadow-none">
                         <p className="font-semibold text-gray-800 mb-3">Recent Admin Activity</p>
                         {auditLog.length === 0 ? (
                             <p className="text-sm text-gray-400">No activity recorded yet.</p>
@@ -762,7 +762,7 @@ export default function AdminPanel() {
                                         <div key={section.title} className="px-5 py-4">
                                             <div className="mb-3">
                                                 <p className="text-sm font-semibold text-gray-700">{section.title}</p>
-                                                <p className="text-xs text-gray-400">{section.description}</p>
+                                                <p className="text-xs text-gray-400 dark:text-slate-500">{section.description}</p>
                                             </div>
                                             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
                                                 {section.fields.map(({ key, label, unit, isInt }) => (
@@ -817,7 +817,7 @@ export default function AdminPanel() {
                     {aiSettings && (
                         <>
                             {/* Toggle */}
-                            <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+                            <div className="bg-white dark:bg-sn-card rounded-xl border border-gray-200 dark:border-white/5 p-5 shadow-sm dark:shadow-none">
                                 <div className="flex items-center justify-between">
                                     <div>
                                         <p className="font-semibold text-gray-800">AI Features</p>
@@ -837,7 +837,7 @@ export default function AdminPanel() {
                             </div>
 
                             {/* Model picker */}
-                            <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm space-y-4">
+                            <div className="bg-white dark:bg-sn-card rounded-xl border border-gray-200 dark:border-white/5 p-5 shadow-sm dark:shadow-none space-y-4">
                                 <div>
                                     <p className="font-semibold text-gray-800 mb-1">Active Model</p>
                                     <p className="text-sm text-gray-400">
@@ -872,7 +872,7 @@ export default function AdminPanel() {
                                                         <div>
                                                             <p className="text-sm font-medium font-mono text-gray-800">{m.name}</p>
                                                             {m.details?.parameter_size && (
-                                                                <p className="text-xs text-gray-400">{m.details.parameter_size} · {m.details.family ?? ''}</p>
+                                                                <p className="text-xs text-gray-400 dark:text-slate-500">{m.details.parameter_size} · {m.details.family ?? ''}</p>
                                                             )}
                                                         </div>
                                                     </div>
@@ -905,7 +905,7 @@ export default function AdminPanel() {
                             </div>
 
                             {/* Connection info */}
-                            <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+                            <div className="bg-white dark:bg-sn-card rounded-xl border border-gray-200 dark:border-white/5 p-5 shadow-sm dark:shadow-none">
                                 <p className="font-semibold text-gray-800 mb-3">Connection</p>
                                 <dl className="space-y-2 text-sm">
                                     <div className="flex justify-between">

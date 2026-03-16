@@ -85,7 +85,7 @@ export default function EmploymentIncome({ onNext, onBack }: Props) {
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
-                    <h2 className="text-xl font-semibold text-gray-800">Employment Income</h2>
+                    <h2 className="font-heading font-semibold text-xl text-gray-800 dark:text-slate-200">Employment Income</h2>
                     <p className="text-sm text-gray-500 mt-1">
                         Find these on your <strong>Lohnsteuerbescheinigung</strong> — the annual tax
                         certificate your employer sends you each February.
@@ -133,7 +133,7 @@ export default function EmploymentIncome({ onNext, onBack }: Props) {
                                         max={12}
                                         step={1}
                                         {...register(`salaryPeriods.${idx}.months`, { valueAsNumber: true, min: 1, max: 12 })}
-                                        className="w-16 border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+                                        className="w-16 border border-gray-300 rounded-lg px-2 py-1.5 text-sm"
                                         placeholder="6"
                                     />
                                     <span className="text-xs text-gray-500">months at</span>
@@ -144,7 +144,7 @@ export default function EmploymentIncome({ onNext, onBack }: Props) {
                                         min={0}
                                         step="any"
                                         {...register(`salaryPeriods.${idx}.monthlyGross`, { valueAsNumber: true, min: 0 })}
-                                        className="w-32 border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+                                        className="w-32 border border-gray-300 rounded-lg px-2 py-1.5 text-sm"
                                         placeholder="e.g. 4500"
                                     />
                                     <span className="text-xs text-gray-500">€/month gross</span>
@@ -192,7 +192,7 @@ export default function EmploymentIncome({ onNext, onBack }: Props) {
                 {/* Gross Salary — hidden when salary change mode is active */}
                 {!hasSalaryChange && (
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                             Gross Salary ({unit})
                             <FieldHint
                                 explanation="Your total annual pay before any tax or social security deductions — the amount in your employment contract multiplied by 12."
@@ -206,7 +206,7 @@ export default function EmploymentIncome({ onNext, onBack }: Props) {
                             max={2000000}
                             step="any"
                             {...register('grossSalary', { valueAsNumber: true, min: 0, max: 2000000 })}
-                            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+                            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
                             placeholder={mode === 'monthly' ? 'e.g. 4583' : 'e.g. 55000'}
                         />
                         {gross > 0 && (
@@ -221,7 +221,7 @@ export default function EmploymentIncome({ onNext, onBack }: Props) {
 
                 {/* Income Tax Withheld */}
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                         Income Tax Already Withheld ({unit})
                         <FieldHint
                             explanation="The income tax (Lohnsteuer) your employer deducted from your monthly pay and sent to the tax office. Filing your return shows whether you overpaid (refund) or underpaid (additional payment)."
@@ -234,14 +234,14 @@ export default function EmploymentIncome({ onNext, onBack }: Props) {
                         min={0}
                         step="any"
                         {...register('taxesWithheld', { valueAsNumber: true, min: 0 })}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
                         placeholder={mode === 'monthly' ? 'e.g. 1000' : 'e.g. 12000'}
                     />
                 </div>
 
                 {/* Soli Withheld */}
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                         Solidarity Surcharge Withheld ({unit})
                         <FieldHint
                             explanation="The Solidaritätszuschlag (Soli) deducted by your employer. Most employees pay no Soli in 2026 due to the higher Freigrenze. If withheld, enter the amount here so your total withheld is accurate."
@@ -254,14 +254,14 @@ export default function EmploymentIncome({ onNext, onBack }: Props) {
                         min={0}
                         step="any"
                         {...register('soliWithheld', { valueAsNumber: true, min: 0 })}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
                         placeholder="e.g. 0"
                     />
                 </div>
 
                 {/* Church Tax Withheld */}
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                         Church Tax Withheld ({unit})
                         <FieldHint
                             explanation="Kirchensteuer deducted by your employer if you are registered as a church member. Enter the total across all employers if you had multiple."
@@ -274,14 +274,14 @@ export default function EmploymentIncome({ onNext, onBack }: Props) {
                         min={0}
                         step="any"
                         {...register('kirchensteuerWithheld', { valueAsNumber: true, min: 0 })}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
                         placeholder="e.g. 0"
                     />
                 </div>
 
                 {/* Bonus section — full width */}
                 <div className="sm:col-span-2 space-y-3">
-                    <label className="block text-sm font-medium text-gray-700">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300">
                         Annual Bonus (optional)
                         <FieldHint
                             explanation="Any extra pay beyond your regular salary — performance bonus, 13th month pay, holiday pay (Urlaubsgeld), or profit-sharing. It's part of your taxable income and is already included in your Lohnsteuerbescheinigung gross amount. Only add it here if it's NOT already in your gross salary figure above."
@@ -316,7 +316,7 @@ export default function EmploymentIncome({ onNext, onBack }: Props) {
                             min={0}
                             step="any"
                             {...register('bonus', { valueAsNumber: true, min: 0 })}
-                            className="w-full sm:w-48 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+                            className="w-full sm:w-48 border border-gray-300 rounded-lg px-3 py-2 text-sm"
                             placeholder="e.g. 5000"
                         />
                     ) : (
@@ -328,7 +328,7 @@ export default function EmploymentIncome({ onNext, onBack }: Props) {
                                     max={200}
                                     step={0.1}
                                     {...register('bonusPercent', { valueAsNumber: true, min: 0, max: 200 })}
-                                    className="w-24 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+                                    className="w-24 border border-gray-300 rounded-lg px-3 py-2 text-sm"
                                     placeholder="e.g. 15"
                                 />
                                 <span className="text-gray-500 text-sm font-medium">%</span>
@@ -340,7 +340,7 @@ export default function EmploymentIncome({ onNext, onBack }: Props) {
                             )}
                         </div>
                     )}
-                    <p className="text-xs text-gray-400">Leave at 0 if you had no bonus, or if it is already included in your gross salary above.</p>
+                    <p className="text-xs text-gray-400 dark:text-slate-500">Leave at 0 if you had no bonus, or if it is already included in your gross salary above.</p>
                 </div>
             </div>
 

@@ -49,6 +49,7 @@ Savings formula: deduction_amount × marginal_rate = annual tax saved
 ### Soli — 5.5% of income tax; only if income tax > €20,350 single / €40,700 joint (most employees pay ZERO)
 ### Church tax — 9% of income tax (8% Bavaria/BW); deductible as Sonderausgaben
 ### Voluntary filing deadlines — 2022: ⚠ 31 Dec 2026! | 2023: 31 Dec 2027 | 2024: 31 Dec 2028
+### Loss carry-forward (§10d EStG Verlustvortrag) — reduces ZVE directly; only applies if user holds a Verlustfeststellungsbescheid
 
 ### Top 10 Missed Deductions
 1. Health insurance employee share (often €3k–€5k/yr, commonly forgotten)
@@ -229,12 +230,16 @@ class OllamaService:
             "If they are below, explain how much more they would need to benefit.\n"
             "If they are near or above, calculate the deductible excess and the tax saving.\n\n"
             "== KINDERFREIBETRAG vs KINDERGELD GUIDANCE ==\n"
-            "For users with children: Kindergeld (€259/month/child = €3,108/year) is the default.\n"
-            "The Kinderfreibetrag (€9,756/child) is only used if the resulting tax saving exceeds Kindergeld.\n"
-            "Tax saving from Kinderfreibetrag = €9,756 × marginal_rate (approx).\n"
-            "- At 42% marginal rate: saving = €4,098 → use Kinderfreibetrag (beats €3,108 Kindergeld)\n"
-            "- At 30% marginal rate: saving = €2,927 → keep Kindergeld (beats Kinderfreibetrag)\n"
-            "When asked about children and taxes, explain this comparison and which applies to the user.\n\n"
+            "For users with children: Kindergeld (€259/month/child = €3,108/year per child) is paid by default.\n"
+            "The Kinderfreibetrag (€9,756/child) replaces Kindergeld only when the resulting TAX SAVING exceeds Kindergeld.\n"
+            "Tax saving per child = €9,756 × marginal_rate (the Freibetrag reduces ZVE).\n"
+            "- At 42% marginal rate: saving per child = €4,098 → beats Kindergeld €3,108 → use Kinderfreibetrag\n"
+            "- At 38% marginal rate: saving per child = €3,707 → beats Kindergeld €3,108 → use Kinderfreibetrag\n"
+            "- At 32% marginal rate: saving per child = €3,122 → barely beats Kindergeld → borderline\n"
+            "- At 30% marginal rate: saving per child = €2,927 → below Kindergeld → keep Kindergeld\n"
+            "Break-even: Kinderfreibetrag wins when marginal rate ≥ ~32%.\n"
+            "IMPORTANT: The tax office performs this comparison automatically (Günstigerprüfung).\n"
+            "When asked about children and taxes, calculate per-child saving and compare to €3,108 Kindergeld.\n\n"
             "== DOCUMENT CHECKLIST MODE ==\n"
             "When asked for a document checklist, produce a structured list organised by category:\n"
             "1. Employment: Lohnsteuerbescheinigung (from employer by Feb 28), payslips for insurance amounts\n"
@@ -324,6 +329,10 @@ class OllamaService:
             )
             lines.append(f"- Union fees: {fmt(user_context.get('union_fees', 0))}")
 
+            loss = user_context.get("loss_carry_forward", 0) or 0
+            if loss > 0:
+                lines.append(f"- Loss carry-forward (§10d EStG): {fmt(loss)}")
+
             # Special expenses
             lines.append("\n### Special expenses entered")
             lines.append(
@@ -342,6 +351,9 @@ class OllamaService:
             lines.append(
                 f"- Medical costs: {fmt(user_context.get('medical_costs', 0))}"
             )
+            church_fees = user_context.get("church_fees_paid", 0) or 0
+            if church_fees > 0:
+                lines.append(f"- Church fees paid: {fmt(church_fees)}")
             if user_context.get("num_children", 0) > 0:
                 lines.append(
                     f"- Childcare costs: {fmt(user_context.get('childcare_costs', 0))}"

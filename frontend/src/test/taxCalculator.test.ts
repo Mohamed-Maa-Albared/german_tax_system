@@ -368,3 +368,197 @@ describe('Soli and KiSt withheld in total_withheld', () => {
         expect(r.total_withheld).toBe(32200)
     })
 })
+
+// ── Häusliches Arbeitszimmer ────────────────────────────────────────────────
+describe('Häusliches Arbeitszimmer (dedicated home-office room)', () => {
+    it('proportional rent beats Jahrespauschale when large enough', () => {
+        // 20 m² / 60 m², €2,400/month → annual = 9,600 > 1,260
+        const r = calc(60_000, {
+            deductions: {
+                ...defaultDeductions,
+                homeOfficeType: 'arbeitszimmer',
+                arbeitszimmerMittelpunkt: true,
+                apartmentSqm: 60,
+                officeSqm: 20,
+                monthlyWarmRent: 2400,
+                yourRentSharePct: 100,
+                commuteDays: 0,
+            },
+        })
+        expect(r.werbungskosten_used).toBeCloseTo(9_600, 0)
+    })
+
+    it('Jahrespauschale floor applied when proportional rent is small', () => {
+        // 5 m² / 100 m², €600/month → annual = 360 < 1,260 → 1,260 used
+        const r = calc(50_000, {
+            deductions: {
+                ...defaultDeductions,
+                homeOfficeType: 'arbeitszimmer',
+                arbeitszimmerMittelpunkt: true,
+                apartmentSqm: 100,
+                officeSqm: 5,
+                monthlyWarmRent: 600,
+                yourRentSharePct: 100,
+                commuteDays: 0,
+            },
+        })
+        expect(r.werbungskosten_used).toBeCloseTo(1_260, 0)
+    })
+
+    it('shared apartment proration reduces arbeitszimmer deduction', () => {
+        // 15 m² / 80 m², €1,200/month, 50% share → 1,350
+        const r = calc(50_000, {
+            deductions: {
+                ...defaultDeductions,
+                homeOfficeType: 'arbeitszimmer',
+                arbeitszimmerMittelpunkt: true,
+                apartmentSqm: 80,
+                officeSqm: 15,
+                monthlyWarmRent: 1200,
+                yourRentSharePct: 50,
+                commuteDays: 0,
+            },
+        })
+        expect(r.werbungskosten_used).toBeCloseTo(1_350, 0)
+    })
+
+    it('without mittelpunkt, falls back to daily pauschale', () => {
+        const pauschale = calc(50_000, {
+            deductions: { ...defaultDeductions, homeOfficeDays: 80, commuteDays: 0 },
+        })
+        const arbeit = calc(50_000, {
+            deductions: {
+                ...defaultDeductions,
+                homeOfficeDays: 80,
+                homeOfficeType: 'arbeitszimmer',
+                arbeitszimmerMittelpunkt: false,
+                apartmentSqm: 70,
+                officeSqm: 15,
+                monthlyWarmRent: 2_000,
+                commuteDays: 0,
+            },
+        })
+        expect(pauschale.werbungskosten_used).toBeCloseTo(arbeit.werbungskosten_used, 0)
+    })
+
+    it('start month prorates proportional rent (July → 6 months)', () => {
+        // 20 m² / 60 m², €2,400/month: full year = 9,600; from July = 4,800
+        const full = calc(60_000, {
+            deductions: {
+                ...defaultDeductions,
+                homeOfficeType: 'arbeitszimmer',
+                arbeitszimmerMittelpunkt: true,
+                apartmentSqm: 60,
+                officeSqm: 20,
+                monthlyWarmRent: 2400,
+                yourRentSharePct: 100,
+                arbeitszimmerStartMonth: 1,
+                commuteDays: 0,
+            },
+        })
+        const half = calc(60_000, {
+            deductions: {
+                ...defaultDeductions,
+                homeOfficeType: 'arbeitszimmer',
+                arbeitszimmerMittelpunkt: true,
+                apartmentSqm: 60,
+                officeSqm: 20,
+                monthlyWarmRent: 2400,
+                yourRentSharePct: 100,
+                arbeitszimmerStartMonth: 7,  // July → 6 months
+                commuteDays: 0,
+            },
+        })
+        expect(full.werbungskosten_used).toBeCloseTo(9_600, 0)
+        expect(half.werbungskosten_used).toBeCloseTo(4_800, 0)
+    })
+
+    it('start month prorates Jahrespauschale floor (full year → €1,260 wins; half year → WK-Pauschale €1,230 wins)', () => {
+        // 5 m² / 100 m², €600/month, tiny proportional rent always below the floor
+        const full = calc(50_000, {
+            deductions: {
+                ...defaultDeductions,
+                homeOfficeType: 'arbeitszimmer',
+                arbeitszimmerMittelpunkt: true,
+                apartmentSqm: 100,
+                officeSqm: 5,
+                monthlyWarmRent: 600,
+                yourRentSharePct: 100,
+                arbeitszimmerStartMonth: 1,   // 12 months → floor = 1,260 > WK-Pauschale 1,230
+                commuteDays: 0,
+            },
+        })
+        const half = calc(50_000, {
+            deductions: {
+                ...defaultDeductions,
+                homeOfficeType: 'arbeitszimmer',
+                arbeitszimmerMittelpunkt: true,
+                apartmentSqm: 100,
+                officeSqm: 5,
+                monthlyWarmRent: 600,
+                yourRentSharePct: 100,
+                arbeitszimmerStartMonth: 7,   // 6 months → floor = 630 < WK-Pauschale 1,230 → 1,230 wins
+                commuteDays: 0,
+            },
+        })
+        expect(full.werbungskosten_used).toBeCloseTo(1_260, 0)
+        expect(half.werbungskosten_used).toBeCloseTo(1_230, 0)
+    })
+})
+
+// ── Teacher / civil-servant deductions ─────────────────────────────────────
+describe('Teacher and civil-servant deductions', () => {
+    it('teacher materials add to Werbungskosten', () => {
+        // 1,500 materials alone exceeds the Pauschale (1,230) → actual is used
+        const withMaterials = calc(55_000, {
+            deductions: { ...defaultDeductions, commuteDays: 0, teacherMaterials: 1_500 },
+        })
+        expect(withMaterials.werbungskosten_used).toBeCloseTo(1_500, 0)
+    })
+
+    it('small teacher materials still uses Pauschale floor', () => {
+        const r = calc(50_000, {
+            deductions: { ...defaultDeductions, commuteDays: 0, teacherMaterials: 50 },
+        })
+        expect(r.werbungskosten_used).toBeCloseTo(1_230, 0)
+    })
+
+    it('double household capped at €1,000/month', () => {
+        // 1,500/month × 3 months → capped to 3,000
+        const r = calc(50_000, {
+            deductions: {
+                ...defaultDeductions,
+                commuteDays: 0,
+                doubleHouseholdCostsPerMonth: 1_500,
+                doubleHouseholdMonths: 3,
+            },
+        })
+        expect(r.werbungskosten_used).toBeCloseTo(3_000, 0)
+    })
+
+    it('double household for 12 months at €800/month', () => {
+        const r = calc(55_000, {
+            deductions: {
+                ...defaultDeductions,
+                commuteDays: 0,
+                doubleHouseholdCostsPerMonth: 800,
+                doubleHouseholdMonths: 12,
+            },
+        })
+        expect(r.werbungskosten_used).toBeCloseTo(9_600, 0)
+    })
+
+    it('teacher materials and double household combine', () => {
+        // 500 materials + 800×6 months = 5,300
+        const r = calc(60_000, {
+            deductions: {
+                ...defaultDeductions,
+                commuteDays: 0,
+                teacherMaterials: 500,
+                doubleHouseholdCostsPerMonth: 800,
+                doubleHouseholdMonths: 6,
+            },
+        })
+        expect(r.werbungskosten_used).toBeCloseTo(5_300, 0)
+    })
+})

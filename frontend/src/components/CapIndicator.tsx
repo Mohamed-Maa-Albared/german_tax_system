@@ -32,23 +32,31 @@ export default function CapIndicator({ current, max, label, unit = '€' }: Prop
     const isNearCap = pct >= 90 && !isAtCap
 
     const barClass = isAtCap
-        ? 'bg-amber-400'
+        ? 'bg-brand-600'
         : isNearCap
-            ? 'bg-amber-300'
+            ? 'bg-brand-400'
             : 'bg-brand-400'
 
-    const textClass = isAtCap ? 'text-amber-700' : isNearCap ? 'text-amber-600' : 'text-gray-400'
+    const textClass = isAtCap
+        ? 'text-brand-600 dark:text-brand-400'
+        : isNearCap
+            ? 'text-brand-500 dark:text-brand-400'
+            : 'text-gray-400 dark:text-slate-500'
 
     return (
         <div className="mt-1.5">
-            <div className={`flex justify-between text-xs mb-0.5 ${textClass}`}>
+            <div className={`flex justify-between text-xs mb-0.5 font-mono ${textClass}`}>
                 <span>{label}</span>
                 <span>
                     {fmt(current, unit)} / {fmt(max, unit)}
-                    {isAtCap && ' · cap reached'}
+                    {isAtCap && (
+                        <span className="ml-1.5 inline-flex items-center gap-0.5 text-[10px] uppercase tracking-widest font-semibold text-brand-600 dark:text-brand-400">
+                            · cap reached
+                        </span>
+                    )}
                 </span>
             </div>
-            <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+            <div className="h-1.5 bg-gray-100 dark:bg-white/5 rounded-full overflow-hidden">
                 <div
                     className={`h-full rounded-full transition-all duration-200 ${barClass}`}
                     style={{ width: `${pct}%` }}

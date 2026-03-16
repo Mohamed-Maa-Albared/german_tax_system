@@ -33,7 +33,7 @@ export default function OtherIncome({ onNext, onBack }: Props) {
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
-                    <h2 className="text-xl font-semibold text-gray-800">Other Income</h2>
+                    <h2 className="font-heading font-semibold text-xl text-gray-800 dark:text-slate-200">Other Income</h2>
                     <p className="text-sm text-gray-500 mt-1">
                         Leave all fields at 0 if they don't apply to you.
                     </p>
@@ -115,7 +115,7 @@ export default function OtherIncome({ onNext, onBack }: Props) {
 
                 {/* ETF / fund type selector — drives Teilfreistellung */}
                 <div className="mt-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                         Investment Fund Type
                         <FieldHint
                             explanation="Select the type of your investment fund. Since the 2018 InvStG reform, a portion of gains from investment funds is automatically tax-free (Teilfreistellung): 30% for equity ETFs, 15% for mixed funds, 60% for real estate funds. Select 'Standard' for individual shares, bonds, or savings accounts — no partial exemption applies."
@@ -125,7 +125,7 @@ export default function OtherIncome({ onNext, onBack }: Props) {
                     </label>
                     <select
                         {...register('fundType')}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300 bg-white"
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white"
                     >
                         <option value="standard">Standard (Stocks / Bonds / Savings — no exemption)</option>
                         <option value="equity_etf">Equity ETF / Aktienfonds — 30% tax-free</option>
@@ -197,7 +197,7 @@ function Field({
 }) {
     return (
         <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                 {label.replace('(€)', mode === 'monthly' ? '(€/month)' : '(€/year)')}
                 {hint && <FieldHint {...hint} />}
             </label>
@@ -206,7 +206,7 @@ function Field({
                 min={0}
                 step="any"
                 {...register(name, { valueAsNumber: true, min: 0 })}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
                 placeholder="0"
             />
         </div>

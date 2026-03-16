@@ -49,11 +49,13 @@ Every new function in the tax engine (backend or frontend) needs at least one te
 - **Never add features beyond what's requested.** Keep solutions minimal and focused.
 
 ### 7. Frontend: elegant and practical
-- The logo (`logo.png` / `frontend/public/logo.svg`) must appear in `Layout.tsx` on every page.
+- The logo (`calc_logo.png`) must appear in `Layout.tsx` on every page.
 - Label everything in English with German in brackets: "Income Tax (Einkommensteuer)".
 - Progressive disclosure: show fields only when relevant.
 - Mobile-first. Accessible. No visual clutter.
-- Use the project's color system (navy #1B3A6B, gold #F5A623) — defined in `tailwind.config.ts`.
+- **Design system**: Steuer Neural (see `design_idea.md`). Colors: `brand-600 = #5e4ad8` (accent), `sn-cyan = #00d4ff`. Fonts: Space Grotesk (headings, `font-heading`), Inter (body, default), JetBrains Mono (€ values/metadata, `font-mono` or `font-tax-mono`).
+- **Dark mode**: `darkMode: 'class'` in Tailwind. `ThemeToggle` in Layout toggles `.dark` on `<html>` and persists to `localStorage` under key `sn-theme`. Light mode is default. Anti-flash inline script in `index.html`.
+- All surfaces use `bg-white dark:bg-sn-card`, text uses `text-gray-*` with `dark:text-slate-*` variants.
 
 ### 8. Best practices
 - Use `pytest.approx(value, abs=1)` for near-integer monetary assertions.
@@ -74,31 +76,36 @@ All tax logic traces back to `tax_system.MD` (last verified: March 2026 against 
 
 ### Implemented and compliant ✅
 
-| Feature                                                 | Status | Law reference            |
-| ------------------------------------------------------- | ------ | ------------------------ |
-| §32a EStG zones 1–5 (2026 coefficients)                 | ✅      | §32a EStG                |
-| Ehegattensplitting (joint filing)                       | ✅      | §26 EStG                 |
-| Solidaritätszuschlag with Freigrenze                    | ✅      | SolZG 2026               |
-| Kirchensteuer (8%/9% by state)                          | ✅      | State church tax laws    |
-| Werbungskosten ≥ €1,230 Pauschale                       | ✅      | §9a EStG                 |
-| Sonderausgaben ≥ €36 Pauschale                          | ✅      | §10c EStG                |
-| Pendlerpauschale €0.38/km from km 1                     | ✅      | EStG 2026 (unified rate) |
-| Home office €6/day, max 210 days                        | ✅      | BMF 2024+                |
-| Kinderfreibetrag vs Kindergeld (Günstigerprüfung)       | ✅      | §32 EStG                 |
-| Sparer-Pauschbetrag €1,000                              | ✅      | §20 EStG                 |
-| Abgeltungsteuer 25% + Soli on investments               | ✅      | §32d EStG                |
-| ETF Teilfreistellung (equity 30%, mixed 15%, RE 60%)    | ✅      | §20/21 InvStG 2018       |
-| Vorabpauschale field (informational; §18 InvStG)        | ✅      | §18 InvStG               |
-| Pension deductions (up to €30,826 single/€61,652 joint) | ✅      | §10 EStG 2026            |
-| Alimony (Realsplitting) max €13,805                     | ✅      | §10 EStG                 |
-| Childcare 80% of costs, max €4,800/child                | ✅      | §10 EStG                 |
-| Ehrenamt allowance €960                                 | ✅      | §3 Nr. 26a EStG 2026     |
-| Übungsleiter allowance €3,300                           | ✅      | §3 Nr. 26 EStG 2026      |
-| Health + long-term care insurance deduction             | ✅      | §10 Abs.1 Nr.3 EStG      |
-| Riester cap €2,100/person (€4,200 joint filing)         | ✅      | §10a EStG                |
-| Work equipment, work training, union fees               | ✅      | §9 EStG                  |
-| Außergewöhnliche Belastungen — full §33 Abs.3 table     | ✅      | §33 Abs.3 EStG           |
-| §33b Disability Pauschbetrag (GdB 20–100)               | ✅      | §33b EStG                |
+| Feature                                                               | Status | Law reference                  |
+| --------------------------------------------------------------------- | ------ | ------------------------------ |
+| §32a EStG zones 1–5 (2026 coefficients)                               | ✅      | §32a EStG                      |
+| Ehegattensplitting (joint filing)                                     | ✅      | §26 EStG                       |
+| Solidaritätszuschlag with Freigrenze                                  | ✅      | SolZG 2026                     |
+| Kirchensteuer (8%/9% by state)                                        | ✅      | State church tax laws          |
+| Werbungskosten ≥ €1,230 Pauschale                                     | ✅      | §9a EStG                       |
+| Sonderausgaben ≥ €36 Pauschale                                        | ✅      | §10c EStG                      |
+| Pendlerpauschale €0.38/km from km 1                                   | ✅      | EStG 2026 (unified rate)       |
+| Home office €6/day, max 210 days                                      | ✅      | BMF 2024+                      |
+| Kinderfreibetrag vs Kindergeld (Günstigerprüfung)                     | ✅      | §32 EStG                       |
+| Sparer-Pauschbetrag €1,000                                            | ✅      | §20 EStG                       |
+| Abgeltungsteuer 25% + Soli on investments                             | ✅      | §32d EStG                      |
+| ETF Teilfreistellung (equity 30%, mixed 15%, RE 60%)                  | ✅      | §20/21 InvStG 2018             |
+| Vorabpauschale field (informational; §18 InvStG)                      | ✅      | §18 InvStG                     |
+| Pension deductions (up to €30,826 single/€61,652 joint)               | ✅      | §10 EStG 2026                  |
+| Alimony (Realsplitting) max €13,805                                   | ✅      | §10 EStG                       |
+| Childcare 80% of costs, max €4,800/child                              | ✅      | §10 EStG                       |
+| Ehrenamt allowance €960                                               | ✅      | §3 Nr. 26a EStG 2026           |
+| Übungsleiter allowance €3,300                                         | ✅      | §3 Nr. 26 EStG 2026            |
+| Health + long-term care insurance deduction                           | ✅      | §10 Abs.1 Nr.3 EStG            |
+| Riester cap €2,100/person (€4,200 joint filing)                       | ✅      | §10a EStG                      |
+| Work equipment, work training, union fees                             | ✅      | §9 EStG                        |
+| Außergewöhnliche Belastungen — full §33 Abs.3 table                   | ✅      | §33 Abs.3 EStG                 |
+| §33b Disability Pauschbetrag (GdB 20–100)                             | ✅      | §33b EStG                      |
+| Häusliches Arbeitszimmer (proportional rent + Jahrespauschale €1,260) | ✅      | §9 Abs.5 / §4 Abs.5 Nr.6b EStG |
+| Shared apartment proration for Arbeitszimmer                          | ✅      | BMF / VLH guidance             |
+| Teacher/Beamte: Unterrichtsmaterialien                                | ✅      | §9 Abs.1 Nr.6 EStG             |
+| Doppelte Haushaltsführung capped at €1,000/month                      | ✅      | §9 Abs.1 Nr.5 EStG             |
+| Occupation type selector (employee / teacher / freelancer)            | ✅      | UX / routing                   |
 
 ### Important 2026-specific changes (already implemented)
 - **Pendlerpauschale is now €0.38 from the 1st km** — no more tiered rate. The old €0.30 for km 1–20 was abolished.
@@ -121,14 +128,14 @@ All tax logic traces back to `tax_system.MD` (last verified: March 2026 against 
 ## Current State of the Codebase
 
 **Last updated**: March 15, 2026  
-**Session**: 014
+**Session**: 018
 
 ### Test status
 | Suite             | Tests | Result        |
 | ----------------- | ----- | ------------- |
-| Backend (pytest)  | 105   | ✅ All passing |
-| Frontend (vitest) | 94    | ✅ All passing |
-| Total             | 199   | ✅             |
+| Backend (pytest)  | 118   | ✅ All passing |
+| Frontend (vitest) | 121   | ✅ All passing |
+| Total             | 239   | ✅             |
 
 ### All files present and working
 
@@ -158,7 +165,7 @@ All tax logic traces back to `tax_system.MD` (last verified: March 2026 against 
 - `src/pages/FilingInstructions.tsx` — FilingTimingGuide, programmatic PDF download
 - `src/pages/TaxAdvisor.tsx` — full AI advisor with APPLY proposals, streaming, snapshot sidebar, suggested questions
 - `src/pages/SteuerbescheidReader.tsx` — post-filing Bescheid comparison; `parseEuro()`, `computeDiscrepancies()`, Einspruch guide; route `/steuerbescheid`
-- `src/test/` — taxCalculator (29), store (19), TaxBreakdown (10), deductionOpportunities (30), total 94
+- `src/test/` — taxCalculator (46), store (19), TaxBreakdown (10), deductionOpportunities (39), pages.smoke (7), total 121
 - `public/logo.svg`, `index.html`, config files
 
 **Docs** (`docs/`)
@@ -206,7 +213,10 @@ investments:     gross_income, tax_withheld, fund_type, vorabpauschale   ← key
 self_employed:   revenue, expenses
 rental:          gross_income, expenses
 deductions:      commute_km, commute_days, home_office_days, work_equipment, work_training,
-                 other_work_expenses, union_fees, loss_carry_forward
+                 other_work_expenses, union_fees, loss_carry_forward,
+                 home_office_type, arbeitszimmer_mittelpunkt, apartment_sqm, office_sqm,
+                 monthly_warm_rent, your_rent_share_pct,
+                 teacher_materials, double_household_costs_per_month, double_household_months
 special_expenses:health_insurance, long_term_care_insurance, pension_contributions,
                  riester_contributions, donations, childcare_costs, alimony_paid,
                  church_fees_paid, medical_costs
@@ -279,9 +289,12 @@ specialExpenses: { healthInsurance, longTermCareInsurance, pensionContributions,
 | `valueAsNumber: true` + empty input → `NaN`, not `undefined`                   | `NaN ?? 0 === NaN` — nullish coalescing does NOT guard NaN. Use `\|\| 0` in `onSubmit` for all optional numeric fields. Apply to both the form handler and the calculator (defence in depth).                                                                                         |
 | `from __future__ import annotations` + `@limiter.limit()` decorator            | `functools.wraps` loses the function's `__globals__`, so FastAPI's `get_type_hints()` can't resolve annotation strings. **Solution**: do NOT use `from __future__ import annotations` in route files that use slowapi decorators (use explicit `Optional[X]` syntax instead).         |
 | `slowapi` limiter must be defined in a shared module (`app/limiter.py`)        | If defined in `main.py`, importing from `api/admin.py` creates a circular import. Always define `limiter = Limiter(...)` in `app/limiter.py` and import it in both.                                                                                                                   |
-| `parseEuro` in SteuerbescheidReader — English `"1234.56"` format               | Stripping all dots BEFORE checking for commas breaks English decimals. Fix: check for comma first; if present → German format (strip dots, swap comma); otherwise use as-is.                                                                                                          |
+| `detectArbeitszimmer` fires for regular `occupationType === undefined`         | Guard is `!occupationType \|\| occupationType === 'employee'` — undefined treated as regular employee                                                                                                                                                                                 |
+| Teacher materials of 600 < Pauschale (1230) → Pauschale still applies          | Only actual amounts > Pauschale floor produce a visible deduction increase; tests need amounts > 1230                                                                                                                                                                                 |
+| `FieldHint` tooltip clipped inside `overflow-hidden` cards                     | Use `position: fixed` + `getBoundingClientRect()` so the tooltip escapes ancestor overflow clipping. Implemented globally in `FieldHint.tsx` (session 016). Auto-flips left/up when near viewport edge.                                                                               |  | New numeric fields with `valueAsNumber` in Deductions.tsx produce NaN | `NaN ?? 0 === NaN` — nullish coalescing does NOT guard NaN. Use `\|\| 0` (or `\|\| 100` for percentages) everywhere in `onSubmit` and in `calcWerbungskosten`. Pattern: `data.field \|\| 0` not `data.field ?? 0` for all optional numerics from `<input type="number">`. |  | `parseEuro` in SteuerbescheidReader — English `"1234.56"` format | Stripping all dots BEFORE checking for commas breaks English decimals. Fix: check for comma first; if present → German format (strip dots, swap comma); otherwise use as-is. |
 | `computeScore` in deductionOpportunities — detectors return `None` when at-cap | Items that are at-cap or fully claimed return `null` from detectors and are ABSENT from the opportunities array. `claimedValue` in the score formula will therefore always be 0. Score = `claimedValue / (claimedValue + totalPotential)` only reflects the score of REMAINING items. |
 | `computeOpportunities` called in both Results.tsx and TaxAdvisor.tsx           | Both call it on every render — pure functions, fast in practice. If performance degrades, memoize with `useMemo`.                                                                                                                                                                     |
+| Spot-checking §32a against BMF Steuerrechner: wrong-year values                | The 2026 tariff (grundfreibetrag=12348, zone2_coeff1=914.51, zone3_coeff1=173.10…) gives different results to prior years. Always derive expected values from `tax_system.MD` formula coefficients, NOT from a public Steuerrechner UI that might be showing a different year.        |
 
 ---
 
@@ -299,174 +312,134 @@ specialExpenses: { healthInsurance, longTermCareInsurance, pensionContributions,
 
 ---
 
-## Completed Work (Session 009 — March 15, 2026)
+## Completed Work (Summary — Sessions 009–014)
 
-- [x] **Bug fix — union fees calculator (BOTH backend + frontend)**: Union fees are now deductible ADDITIONALLY to the €1,230 Werbungskosten-Pauschale (§9a EStG 2026 rule). Previously they were incorrectly included in the `max(actual, pauschale)` comparison and therefore "eaten" by the Pauschale. Fixed in `tax_calculator.py` (`calculate_werbungskosten`) and `taxCalculator.ts` (`calcWerbungskosten`). This is a compliance-critical fix.
-- [x] **Advisor system prompt — comprehensive upgrade**:
-  - Full `_TAX_REFERENCE_2026` expanded with: all 10 most-missed deductions, filing timing guidance (early Jan/Feb vs. late), every deduction category with exact amounts and law citations, §33b GdB table, union fees 2026 change note
-  - `_build_chat_system_prompt` now explicitly instructs the advisor to calculate exact savings using the user's marginal rate (formula provided)
-  - Marginal rate automatically computed from user's ZVE and appended to context ("Approximate marginal rate: ~38% — use this for savings calculations")
-- [x] **ELSTER XML — major improvements**:
-  - Rich instructional comment header explaining exactly what the file is, what it is not, and 5-step how-to-use guide (bilingual German/English)
-  - Per-section comments with ELSTER Zeile (form field) numbers and source document references
-  - Fixed typo: `KapitaleinküfteVorAbzug` → now has proper comment context
-  - Added `<!-- NÄCHSTE SCHRITTE / NEXT STEPS -->` closing section with 7-step checklist
-- [x] **ELSTER XML Guide Modal**: ℹ️ button next to "Download ELSTER XML" on Results page. Modal explains: what the file is, 6-step how-to-use, table of all ELSTER forms (Anlage N/S/V/KAP/Kind/etc.) with descriptions.
-- [x] **Tax Filing Information — `FilingTimingGuide` component**: New collapsible section in FilingInstructions showing:
-  - Personalized recommendation banner (file early = refund; wait = payment due)
-  - Early-filing caveat (Jan/Feb): what to do before Lohnsteuerbescheinigung arrives
-  - Self-employment extra guidance (EÜR requirement, extended Steuerberater deadline)
-  - Key dates table with icons: Lohnsteuerbescheinigung due date, earliest filing, mandatory deadline, voluntary deadline
-- [x] **PDF export (programmatic)**: Installed `html2pdf.js` + added `src/types/html2pdf.d.ts` ambient types. FilingInstructions now has "Download PDF" button (async, with loading spinner) using `html2pdf` with `scale: 2` canvas + A4 jsPDF. Falls back to `window.print()` on error. Print button retained separately.
-- [x] **Advisor test scenarios (8 classes, 33 tests)**: Added `TestAdvisorScenarioBasicEmployee`, `Expat`, `FamilyWithChildren`, `Freelancer`, `HighEarner`, `CommuterHomeOffice`, `RetiredPerson`, `MaxDeductions` — each with 3–4 targeted assertions covering the full calculation pipeline with realistic inputs.
-- [x] Backend tests: 65 → 89. All 89 passing ✅. Frontend tests: 58/58 ✅.
+> Full per-session logs have been trimmed. Key learnings are captured in the "Common Pitfalls" table above.
+
+**Session 009**: Union fees fix (§9a EStG — additive to Werbungskosten-Pauschale, not consumed by it); advisor system prompt expanded with marginal-rate calculator and top-10 deductions; ELSTER XML bilingual guide comments; `FilingTimingGuide` component; programmatic PDF export (`html2pdf.js`); 8 advisor test scenario classes (33 tests). Tests: 65 → 89 (backend), 58 (frontend).
+
+**Session 010**: APPLY card regex hardened (`gim` flags, handles `**APPLY:**`); `reason` field in proposals; “Analyze” prompt rewritten (no APPLY on first load); system prompt compressed ~60%; Results page refund-hero + “Next Steps” redesign; TaxBreakdown hover tooltips + income-flow waterfall; competitor analysis. Tests: 89 backend / 58 frontend.
+
+**Session 011**: ETF Teilfreistellung (§20/21 InvStG — equity ETF 30% exempt, mixed 15%, RE 60%); salary-change period UI (`useFieldArray`, months must sum to 12); `LStBImport.tsx` XML parser (ISO-8859-15); real-time `CapIndicator`; Alembic migrations. Tests: 97 backend / 58 frontend.
+
+**Session 012**: TaxBreakdown CSS transition animation overhaul (staggered cubic-bezier delays, opacity transitions — no layout jitter); Teilfreistellung row in breakdown display; Soli/KiSt withheld fields in Employment step; loss carry-forward (§10d EStG); TaxTwin benchmark (Destatis income bands). Tests: 105 backend / 64 frontend.
+
+**Session 013**: `deductionOpportunities.ts` 12-detector engine (`computeOpportunities()` → `OpportunitySummary`); TaxAdvisor 3-tab rewrite (Chat / Opportunities / Refund Diagnosis); DeductionScorePanel in Results; `SteuerbescheidReader.tsx` (route `/steuerbescheid`, `parseEuro`, `computeDiscrepancies`, Einspruch guide). Tests: 105 backend / 94 frontend.
+
+**Session 014**: Security audit — audit log ordering bug fixed (log BEFORE `db.commit()`); `parseEuro` English-decimal fix; `slowapi` brute-force protection on `/api/admin/login` (10/min per IP, shared `app/limiter.py`); all 34 `TaxParametersUpdateSchema` fields given `ge`/`le` validation bounds; startup insecure-defaults warning. Tests: 105 backend / 94 frontend.
 
 ---
 
-## Completed Work (Session 010 — March 15, 2026)
+## Completed Work (Session 018 — March 15, 2026)
 
-**AI Advisor — comprehensive fixes and improvements:**
-- [x] **APPLY card regex hardened**: Now case-insensitive (`gim` flags), handles leading whitespace and markdown bold markers (`**APPLY:**`). Also strips partial/trailing APPLY lines during streaming so they never flash to users.
-- [x] **`reason` field added to `ChangeProposal`**: Model now required to output `"reason":"exact quote"` in every APPLY line so users see *why* a value was suggested. Proposal cards display reason in italic below the field name.
-- [x] **"Analyze" button prompt rewritten**: No longer asks for APPLY lines. Instead asks the AI to explain each zero-value deduction and what information the user would need to claim it. This stops generic value-inventing on first load.
-- [x] **System prompt compressed ~60%**: `_TAX_REFERENCE_2026` trimmed from ~200 lines to ~55 lines (kept all key numbers, removed verbose explanations/examples). This reduces token usage per call, allowing more answer budget.
-- [x] **APPLY rules made strictly grounded**: "ONLY output APPLY when user EXPLICITLY stated a specific amount." Old prompt said "never invent" but the model ignored it; new prompt says "if user did not state an amount, NO APPLY line — explain in text only."
-- [x] **`num_predict` raised to 1200**, temperature lowered to 0.3 for more consistent structured output.
+**FilingInstructions page + multi-year comparison redesign (pure UI — no logic changes):**
 
-**Results page — complete redesign:**
-- [x] **Refund hero upgraded**: Gradient background, larger amount, contextual subtitle ("Overpaid via payroll withholding — claim it back by filing your Steuererklärung").
-- [x] **Edit button in header**: Small "Edit inputs" button replaces bulky duplicate navigation.
-- [x] **"Next Steps" section replaces button clutter**: Two primary action cards (📄 Get Filing Package, 🤖 Maximize My Refund) with explanatory text; secondary actions (Download XML, What is XML?, Add year, Start over) grouped visually as smaller links.
+- [x] **`FilingInstructions.tsx` — complete Steuer Neural redesign** (561 lines):
+  - Added imports: `ArrowLeft`, `Calendar`, `ChevronRight`, `FileText` from lucide-react.
+  - `FilingTimingGuide`: replaced `bg-green-50 border border-green-200` boxes with `relative overflow-hidden rounded-xl` cards + left accent bars, full dark mode, `font-mono text-[10px] uppercase tracking-widest` meta labels.
+  - `Section`, `Row`, `Step` sub-components: `dark:bg-sn-card`, `dark:border-white/5`, `font-mono` values, `font-heading font-semibold` step titles.
+  - Page header: `font-mono` overline badge (`// Tax Filing Package`), `font-heading font-bold text-2xl`.
+  - Refund hero: gradient style matching Results.tsx (`from-emerald-50`/`from-red-50` → white, dark variants).
+  - **“File for other years”** section: was static `bg-amber-50 border border-amber-200` card → now `bg-white dark:bg-sn-card rounded-2xl` with clickable year buttons navigating to `/wizard`, `ChevronRight` arrows, urgent red accent bar for 2022 (4-year Festsetzungsverjährung deadline risk).
+  - Suggestions: left brand accent bars, dark mode.
+  - Action bar: `ArrowLeft` + `FileText` icons, `rounded-xl dark:border-white/10` buttons.
 
-**TaxBreakdown component — richer visualization:**
-- [x] **Hover tooltips on all 4 summary cards**: Hovering Total Tax, Effective Rate, Marginal Rate, Refund/Due shows a pop-up tooltip explaining the term in plain English (e.g., marginal rate tooltip says "each additional €1,000 deduction saves ~€X").
-- [x] **Income flow waterfall**: New visual (above the chart) showing the progression: Gross income → Deductions (%) → Taxable income (ZVE) → Total tax → Refund. Each row has a proportional bar + hover description. Makes the tax story intuitive at a glance.
+- [x] **`Results.tsx` multi-year comparison — Steuer Neural styling**:
+  - `rounded-2xl` container; `font-mono text-[10px] uppercase tracking-widest` column headers.
+  - Active year gets `“current”` badge (`font-mono text-[9px] uppercase`).
+  - `font-heading font-bold` year numbers; `font-mono text-xs` all monetary values.
+  - `text-emerald-600 dark:text-emerald-400` (refund) / `text-red-600 dark:text-red-400` (payment).
+  - Inline “+ Add year” button promoted to section header.
 
-**Competitor analysis:**
-- [x] **Differentiation strategy section added**: 10-item gap table vs. competitors + 10 outside-the-box feature ideas (Tax Twin benchmark, Steuerbescheid reader, Life Event Planner, live marginal-rate dial, bank/email deduction scanner, "File for Me" concierge, Deduction Score™, Open API) + priority roadmap.
+- [x] **AGENT_HANDOFF.md compacted**: Sessions 009–014 trimmed to summary paragraph; kept Sessions 015–018 as full narratives.
 
-**Test results: 89 backend / 58 frontend — all passing ✅**
+- [x] **Arbeitszimmer start-month proration**: Added `arbeitszimmerStartMonth` (1–12) to `DeductionsData` (types), store default, backend `DeductionsInput` dataclass, `DeductionsInputSchema`, `tax.py` API route mapping, `calculate_werbungskosten()`, and `calcWerbungskosten()`. Both prorations follow `months_active = 13 - start_month`. Proportional rent prorated to active months; Jahrespauschale floor prorated to `1260 × months/12`. UI: dropdown in Deductions wizard (shown when Mittelpunkt is confirmed), live preview updated to show active months and prorated floor label. 2 new backend tests + 2 new frontend tests (prorate proportional rent, prorate floor vs WK-Pauschale).
 
----
-
-## Completed Work (Session 011 — March 15, 2026)
-
-- [x] **ETF Taxation — Teilfreistellung (Segment A, backend + frontend)**:
-  - Added `fund_type` (`standard|equity_etf|mixed_fund|real_estate_fund|bond_fund`) and `vorabpauschale` to `InvestmentInputSchema` and `InvestmentInput` dataclass
-  - Added `_TEILFREISTELLUNG_RATES` dict to `tax_calculator.py`. `calculate_capital_tax()` now applies the rate before the 25% Abgeltungsteuer: equity ETF 30% exempt, mixed fund 15%, real estate fund 60%, standard 0%
-  - `TaxBreakdown` dataclass + `TaxBreakdownResponse` schema: new field `teilfreistellung_applied`
-  - `tax.py` API route: passes `fund_type`/`vorabpauschale` through, returns `teilfreistellung_applied`
-  - Frontend: `OtherIncomeData` → `fundType`, `vorabpauschale`; `taxCalculator.ts` → `TEILFREISTELLUNG_RATES`; `OtherIncome.tsx` → fund type dropdown + vorabpauschale input field
-  - 8 new ETF tests in `TestETFTeilfreistellung` — all passing ✅
-
-- [x] **Salary Changes During the Year (Segment B, frontend)**:
-  - `EmploymentData` gets `hasSalaryChange: boolean` and `salaryPeriods: SalaryPeriod[]` (new `SalaryPeriod` interface)
-  - `EmploymentIncome.tsx` wizard step: toggle switch "My salary changed this year" expands to period rows using `useFieldArray`. Each row = months + monthly gross. Annual gross computed as sum of `months × monthlyGross`. Warning shown if months total ≠ 12
-  - No backend change needed — backend always receives total annual gross
-
-- [x] **Lohnsteuerbescheinigung XML Import (Segment C)**:
-  - New component `frontend/src/components/LStBImport.tsx`
-  - Browser-side `DOMParser` (zero dependencies) — handles both ELSTER attribute format (`<Zeile Nr="3" Betrag="..."/>`) and child-element format
-  - Reads file as ISO-8859-15 (correct ELSTER encoding for Umlauts)
-  - Field mapping: Nr 3 → grossSalary, Nr 4 → taxesWithheld, Nr 5 → soliWithheld, Nr 6+7 → kirchensteuerWithheld
-  - File size guard (2 MB), type check (.xml only), parsererror detection
-  - Integrated into `EmploymentIncome.tsx` via `handleLStBImport` callback that calls `setValue()`
-  - Success/error status banners shown below the file input
-
-- [x] **Real-time Deduction Cap Indicators (Segment D)**:
-  - New component `frontend/src/components/CapIndicator.tsx` — progress bar + "X / Y max" label, amber when >90%, amber-dark when at cap
-  - `Deductions.tsx`: cap indicators for home office days (max 210) and total commute deduction (max €4,500)
-  - `SpecialExpenses.tsx`: cap indicators for Riester (€2,100 or €4,200 joint), alimony (€13,805), childcare (€6,000×numChildren)
-  - Uses `useWatch` for real-time reactivity (no submit needed)
-
-- [x] **Alembic Migrations (Segment E)**:
-  - Installed alembic 1.16.5, added to `requirements.txt`
-  - `alembic init alembic` — created `alembic/` directory with `env.py`, `versions/`
-  - `alembic/env.py` configured: imports `Base` from `app.database`, sets `target_metadata = Base.metadata`
-  - `alembic.ini`: `sqlalchemy.url = sqlite:///./smarttax.db`
-  - Initial migration `63eebdf4bf2e_initial_schema.py` created and applied: drops legacy `tax_returns` table (leftover from pre-session-001; table was not in current models)
-  - **Usage for future schema changes**: `venv/bin/alembic revision --autogenerate -m "description"` then `venv/bin/alembic upgrade head`
-
-- [x] Backend tests: 89 → 97. All 97 passing ✅. Frontend: 58/58 ✅.
+- [x] **Tests**: no regressions — 116 backend + 112 frontend ✅.
 
 
 ---
 
-## Completed Work (Session 012 — March 15, 2026)
+## Completed Work (Session 017 — March 15, 2026)
 
-- [x] **TaxBreakdown redesign + animation fix**:
-  - Replaced jittery FlowRow (bars rendered at final width = no animation) with proper CSS transition animation: bars start at 0% width and grow to target width using `cubic-bezier(0.4, 0, 0.2, 1)` triggered by a parent `useEffect` after mount
-  - Staggered bar delays (0/130/260/390/520ms) — each bar grows in sequence for a professional waterfall effect
-  - Description text now uses `opacity` transition inside a fixed-height container — **eliminates layout shift jitter** (previously caused by conditional mount/unmount)
-  - `SummaryCard` redesigned: white background with 4px top accent border per color, sub-label line (e.g. "avg across all income"), cleaner sans-serif hierarchy
-  - `FlowRow` now shows a percentage badge on the right of each bar
-  - Section containers upgraded to `rounded-2xl` + `border-gray-100` shadow-sm for a cleaner look
-  - Bar chart: added `axisLine={false}`, `tickLine={false}`, styled tooltip with rounded corners + shadow
-  - Detailed breakdown: `Row` highlight colors now correctly green/red (refund is green-bordered, payment is red-bordered)
+**Comprehensive accuracy verification + Beamte-specific UI features:**
 
-- [x] **Teilfreistellung row shown in TaxBreakdown** — when `teilfreistellung_applied > 0`, an "ETF tax exemption (Teilfreistellung)" row appears under the investment income row showing the exempt amount and percentage
+- [x] **Accuracy spot-check** — wrote `backend/spot_check.py` (scratch, not production) testing all §32a EStG zones against values derived directly from the formula in `tax_system.MD`. **42/42 checks pass ✅**. Findings:
+  - §32a tariff formula: ✅ All 5 zones correct, all boundaries continuous.
+  - Solidaritätszuschlag: ✅ Freigrenze (€20,350 single / €40,700 joint) and Milderungszone (20% phase-in → 5.5% full rate above ~EST €28,069) correct.
+  - Ehegattensplitting: ✅ 2 × tariff(ZVE/2) correct.
+  - Werbungskosten: ✅ Pauschale, Pendlerpauschale, Arbeitszimmer, teacher extras all correct.
+  - Kinderfreibetrag Günstigerprüfung: ✅ Freibetrag wins at ZVE 80k; Kindergeld wins at ZVE 20k.
+  - §33b Disability Pauschbetrag: ✅ All GdB bands correct.
+  - **Root cause of initial "failures"**: the test expected values were sourced from a different tax year's BMF parameters, NOT from our system's 2026 formula. The system was never wrong.
+  - **Teacher = same §32a rate as employee**: correct per law — §32a EStG §32a applies equally to all taxpayers. Confirmed by spot-check final test case.
 
-- [x] **Soli withheld + KiSt withheld fields in Employment step**:
-  - Added `soliWithheld?` and `kirchensteuerWithheld?` to `EmploymentData` in `types/tax.ts`
-  - Added defaults (both 0) to store
-  - Added two new UI fields in `EmploymentIncome.tsx` (with FieldHint tooltips, Zeile references for LStB)
-  - Fixed `handleLStBImport` to populate all 4 fields (previously only grossSalary + taxesWithheld)
-  - Updated `taxCalculator.ts`: `total_withheld` now includes `soliWithheld + kirchensteuerWithheld`; `soli_withheld` / `kirchensteuer_withheld` returned in breakdown (were always 0 before)
+- [x] **Beamte info banner in `Results.tsx`**: When `personal.occupationType === 'teacher_civil_servant'`, a cyan accent banner appears between the refund hero and TaxBreakdown explaining: "Same income tax rate is correct — §32a EStG applies equally to everyone. Your advantage as a Beamter is in social security: typically €6,000–€10,000/year saved (no statutory GKV/pension/unemployment contributions)."
 
-- [x] **Loss carry-forward module (§10d EStG — Verlustvortrag)**:
-  - Backend: `DeductionsInput.loss_carry_forward` field added; applied in `calculate_full_tax` at the ZVE step (clamped to 0 floor)
-  - Backend schema: `DeductionsInputSchema.loss_carry_forward` field with `ge=0` validation
-  - API route: passes through to `DeductionsInput`
-  - Frontend: `DeductionsData.lossCarryForward?` field; store default 0; `taxCalculator.ts` applies it
-  - UI: new amber-highlighted section in `Deductions.tsx` wizard step with explanation and Zeile reference
-  - 4 new backend tests (`TestLossCarryForward`), 3 new frontend tests
+- [x] **Beamte PKV hint in `SpecialExpenses.tsx`**: When `isBeamte`:
+  - New cyan note box at top: "Enter your FULL private health insurance premium" — Beamte pay 100% of PKV, no employer contribution. Full amount is deductible §10 Abs.1 Nr.3 EStG.
+  - Health insurance `FieldHint` now shows Beamte-specific text and where-to-find guidance.
+  - Health insurance description line shows "Full PKV premium — 100% deductible" for Beamte.
 
-- [x] **Tax Twin benchmark on Results page**:
-  - New `TaxTwinBenchmark` component using anonymised Destatis income statistics (6 income bands: < €25k to €100k+)
-  - Shows peer average refund vs user refund with proportional bars
-  - Positive framing if above average, advisory framing if below
-  - Only shown when `refund_or_payment > 0` (not shown for tax-due cases)
-  - Disclaimer note with data source
+- [x] **2026 Mindestvorsorgepauschale warning in `SpecialExpenses.tsx`**: When `isBeamte`, an amber warning box explains: Mindestvorsorgepauschale was abolished in 2026. Monthly Lohnsteuer withholding may be temporarily higher. Filing the return reconciles the difference. The calculator already accounts for the full PKV deduction.
 
-- [x] **Admin panel review** — documented missing features for future sessions (see Next Session above)
+- [x] **`spot_check.py`** reference values corrected — now uses values derived from the actual 2026 formula (not guessed BMF values from a different year). Script left in `backend/` as a standalone verification tool.
 
-- [x] Backend tests: 97 → 105 (8 new). Frontend: 58 → 64 (6 new). All passing ✅.
+- [x] **Tests**: no changes to test suite — existing 116 backend + 112 frontend tests all still pass ✅. The Beamte features are conditional UI only; no new arithmetic was added.
 
 ---
 
-## Completed Work (Session 013 — March 15, 2026)
+## Completed Work (Session 016 — March 15, 2026)
 
-**AI Advisor — 5 top advisor priority features:**
-- [x] **`deductionOpportunities.ts`** — new deterministic engine with 12 `detect*` functions; `computeOpportunities()` returns `OpportunitySummary` with opportunities array, score, potential savings range, marginal rate. Completely client-side, zero AI calls.
-- [x] **`TaxAdvisor.tsx` full rewrite** — three-tab UI (Chat / Opportunities / Refund Diagnosis); sidebar with Deduction Score badge, unclaimed alert, what-if quick-sends; `OpportunityCard`, `RefundDiagnosis`, `ConfidenceBadge` sub-components; suggested questions powered by opportunity engine.
-- [x] **`ollama_service.py` system prompt upgrade** — added §33 coaching (zumutbare Belastung calculation), Kinderfreibetrag vs Kindergeld comparison formula, document checklist mode (7 categories), what-if Rule 5.
-- [x] **`DeductionScorePanel` in Results.tsx** — score bar (green/amber/red), unclaimed count, top 3 expandable opportunities, CTA to advisor.
+**Home Office (Häusliches Arbeitszimmer) + Teacher/Civil Servant deductions:**
 
-**Broader product bets (first 2):**
-- [x] **`SteuerbescheidReader.tsx`** — new page at `/steuerbescheid`; manual entry of 5 Bescheid fields; Einspruch deadline calculator; `computeDiscrepancies()` severity-coded comparison; collapsible Einspruch 5-step guide; AI advisor CTA.
-- [x] **Route + nav** — `/steuerbescheid` added to `App.tsx`; "Check Bescheid" nav link with `FileText` icon added to `Layout.tsx`.
-
-**New tests:**
-- [x] `deductionOpportunities.test.ts` — 30 tests: health insurance, home office, union fees, childcare, disability, Riester detection; score formula; marginal rate; sorting.
-
-- [x] Backend tests: 105/105 ✅. Frontend: 64 → 94 (30 new). All passing ✅.
+- [x] **`PersonalInputSchema` + `PersonalInput`** — added `occupation_type` field (`employee | teacher_civil_servant | freelancer`). Passed through `api/tax.py` route.
+- [x] **`DeductionsInputSchema` + `DeductionsInput`** — added 9 new fields:
+  - Arbeitszimmer: `home_office_type`, `arbeitszimmer_mittelpunkt`, `apartment_sqm`, `office_sqm`, `monthly_warm_rent`, `your_rent_share_pct`
+  - Teacher/Beamte: `teacher_materials`, `double_household_costs_per_month`, `double_household_months`
+  All passed through `api/tax.py`.
+- [x] **`calculate_werbungskosten()` rewritten** (`tax_calculator.py` + `taxCalculator.ts`, both in sync):
+  - Mode 1 `"pauschale"` — unchanged €6/day daily flat rate.
+  - Mode 2 `"arbeitszimmer"` + `mittelpunkt=True` — computes `(office_sqm / apartment_sqm) × monthly_warm_rent × 12 × (rent_share / 100)`, then applies `max(proportional_rent, Jahrespauschale €1,260)`. Falls back to daily pauschale if `mittelpunkt=False`.
+  - Teacher extras: `teacher_materials` and `double_household` (capped at €1,000/month) both fold into the `actual_base` before Pauschale comparison.
+- [x] **Frontend types** (`types/tax.ts`) — `PersonalData.occupationType` + all new `DeductionsData` fields.
+- [x] **Store defaults** (`store.ts`) — all new fields default to safe zero values.
+- [x] **PersonalDetails.tsx** — new "Occupation Type" card (branded, with `FieldHint`) at the bottom of the step. Selecting Teacher/Beamte signals the Deductions step to show extra fields.
+- [x] **Deductions.tsx** — full home-office section rewrite:
+  - Radio card picker: "Daily flat rate" vs "Dedicated room (Arbeitszimmer)".
+  - Arbeitszimmer path: Mittelpunkt checkbox (with audit warning), then 4 inputs (apartment m², office m², monthly rent, rent share %) with live calculation preview card showing ratio, annual amount, and which floor applies.
+  - Shared apartment branch: amber warning "You can only claim your X% share".
+  - Teacher/Beamte section (cyan accent card, conditionally rendered): `teacherMaterials` + `doubleHouseholdCostsPerMonth` + `doubleHouseholdMonths` fields with FieldHints and an in-card tip about GEW union fees and first-km commute.
+- [x] **`deductionOpportunities.ts`** — 3 new detectors:
+  - `detectTeacherMaterials` — fires for `teacher_civil_servant` with < €500 claimed.
+  - `detectDoubleHousehold` — fires for `teacher_civil_servant` with no months entered.
+  - `detectArbeitszimmer` — fires for `freelancer` / `teacher_civil_servant` using daily pauschale with >0 home-office days. Guard: `undefined` occupation treated as regular employee (no suggestion).
+- [x] **`FieldHint.tsx` — viewport-safe tooltip** (bug fix): replaced `position: absolute` with `position: fixed` + `getBoundingClientRect()` coordinate calculation. Tooltip now auto-flips left/up when it would overflow the screen edge, and is never clipped by ancestor `overflow-hidden` containers (e.g. the occupation-type card's accent bar). Fix applies to every `FieldHint` across the app.
+- [x] **Backend tests**: 105 → 116 (+11). New classes `TestArbeitszimmer` (5 tests) and `TestTeacherDeductions` (6 tests). All 116 passing ✅.
+- [x] **Frontend tests**: 94 → 112 (+18). New suites in `taxCalculator.test.ts` (9 tests: Arbeitszimmer + teacher) and `deductionOpportunities.test.ts` (9 tests: 3 new detectors × 3 cases each). All 112 passing ✅.
 
 ---
 
-## Completed Work (Session 014 — March 15, 2026)
+## Completed Work (Session 015 — March 15, 2026)
 
-**Security & Maintainability Audit — all findings fixed:**
+**Steuer Neural Design System integration (full frontend redesign):**
 
-- [x] **🔴 Bug fix — `delete_year` audit log ordering** (`api/admin.py`): Audit log entry was added AFTER `db.commit()` that deletes the row. Second commit could fail silently, losing the audit record. Fixed: `db.add(AdminAuditLog(...))` now comes BEFORE `db.delete(param)` in the same transaction.
-- [x] **🔴 Bug fix — `parseEuro` English decimal format** (`SteuerbescheidReader.tsx`): `"1234.56"` was parsed as `123456` because all dots were stripped unconditionally. Fixed: check for comma first to detect German format (`1.234,56`); English/integer format (`1234.56` or `1234`) goes through unchanged.
-- [x] **🟠 Security — brute force protection on admin login** (`main.py`, `api/admin.py`, new `app/limiter.py`): `slowapi` was in requirements but never wired. Created `app/limiter.py` with shared `Limiter(key_func=get_remote_address)`. Attached to `app.state.limiter` in `main.py`. Applied `@limiter.limit("10/minute")` to `POST /api/admin/login`.
-- [x] **🟠 Security — `TaxParametersUpdateSchema` input validation** (`schemas/admin.py`): All 34 parameter fields were `Optional[float] = None` with no constraints. Added `ge`/`le` bounds on every field — rate fields constrained to `[0, 1]`, monetary fields to reasonable ranges, preventing an authenticated admin from setting `zone4_rate=999`.
-- [x] **🟠 Security — startup warning for insecure defaults** (`main.py`): Added `_warn_insecure_defaults()` called in lifespan. Logs `WARNING` if `ADMIN_SECRET_KEY` is `"changeme"` or `ADMIN_PASSWORD` is `"admin"`. Does not block startup but makes misconfiguration visible in logs.
-- [x] **🟡 Maintainability — inline imports moved to module level** (`api/admin.py`): `import os`, `import pathlib`, `import re` were inside the `admin_update_settings()` function body. Moved to top of file.
-- [x] **🟡 Maintainability — `import re as _re` moved to module level** (`ollama_service.py`): Was re-compiled inside `stream_chat` on every call. Moved to module level as `import re as _re` and `_THINK_RE = _re.compile(...)` constant.
-- [x] **🟡 Maintainability — redundant `import json` removed** (`ollama_service.py`): `import json` inside `categorize_expense()` body was a duplicate of the top-level import.
+- [x] **Google Fonts** added to `index.html`: Space Grotesk (700/600), Inter (600/500/400), JetBrains Mono (500/400). Anti-flash inline `<script>` reads `localStorage['sn-theme']` before first paint.
+- [x] **CSS design tokens** in `index.css`: `:root` (light mode) and `.dark` (dark mode) CSS variables for `--bg-*`, `--accent`, `--accent-cyan`, `--text-*`, `--border`. Global dark-mode form input overrides (inputs/selects/textareas) applied via `.dark` selector so all wizard forms get dark treatment without per-component changes.
+- [x] **Tailwind config** (`tailwind.config.js`): `darkMode: 'class'` added. `brand.*` colors updated to Steuer Neural Official Indigo palette (`brand-600 = #5e4ad8`). New `sn.*` color utilities (`sn-deep`, `sn-surface`, `sn-card`, `sn-cyan`, `sn-cyan-dark`). `fontFamily.heading` (Space Grotesk) and `fontFamily.mono` (JetBrains Mono) added.
+- [x] **Logo** updated: `calc_logo.png` copied to `frontend/public/calc_logo.png`; `Layout.tsx` now references it.
+- [x] **`ThemeToggle.tsx`** (new component): Sun/Moon icon button, toggles `.dark` class on `<html>`, persists to `localStorage['sn-theme']`, reads stored preference + system preference on mount. Inserted in nav inside `Layout.tsx`.
+- [x] **`Layout.tsx`** fully redesigned: Steuer Neural dark surface header (`dark:bg-sn-surface`), updated nav active/hover states with `dark:` variants, `font-heading` on brand name, updated footer with compliance copy.
+- [x] **`LandingPage.tsx`** fully redesigned: JetBrains Mono overline badges, gradient-clipped `font-heading` hero title, cyan accent refund figure in `font-mono`, dark-mode cards with hover border, feature cards with `§` overlines, multi-year callout with dark amber variants.
+- [x] **`Results.tsx`** dark-mode styled: refund hero gradient with dark variants, `font-heading` titles, `font-mono` metadata, all card containers (`dark:bg-sn-card`), multi-year comparison table, next-steps section, TaxTwinBenchmark sub-component, DeductionScorePanel sub-component.
+- [x] **`TaxBreakdown.tsx`** dark-mode styled: all cards, FlowRow bars, Dividers, Row highlight/hover states, SummaryCard labels now `font-mono uppercase`.
+- [x] **`ProgressBar.tsx`** dark-mode styled: step dots, track lines.
+- [x] **`FieldHint.tsx`** dark-mode styled: tooltip bg/border/text.
+- [x] **`TaxWizard.tsx`** main card: `dark:bg-sn-card`.
+- [x] **Wizard step components** (all 6): `font-heading` headings, `dark:text-slate-*` labels/helper text, `dark:border-*` section boxes, amber notice sections.
+- [x] **Remaining pages** (TaxAdvisor, FilingInstructions, SteuerbescheidReader, AdminPanel): batch-patched — card containers, headings, muted text — all with `dark:` variants.
 
-- [x] Backend tests: 105/105 ✅. Frontend: 94/94 ✅. All passing.
+- [x] Frontend tests: 94/94 ✅. TypeScript: no errors. No functional changes — all regressions zero.
 
 ---
 
@@ -485,6 +458,7 @@ specialExpenses: { healthInsurance, longTermCareInsurance, pensionContributions,
 - [ ] **Life Event Tax Planner** — project next year's tax for marriage/child/freelance events.
 - [ ] **Gewerbesteuer** for self-employed.
 - [ ] **Playwright E2E tests**.
+- [ ] **Beamte net take-home comparison** — show a "vs. regular employee" side-by-side panel in Results when `occupationType === 'teacher_civil_servant'`, showing that the same gross income leaves more net in Beamte hands due to €0 statutory social contributions.
   
 ---
 

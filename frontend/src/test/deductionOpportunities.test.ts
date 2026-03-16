@@ -337,3 +337,74 @@ describe('document lists', () => {
         })
     })
 })
+
+// ─── Teacher / civil-servant detectors ───────────────────────────────────────
+
+const teacherPers: PersonalData = { ...basePers, occupationType: 'teacher_civil_servant' }
+
+describe('detectTeacherMaterials', () => {
+    it('detects opportunity when teacher has no materials entered', () => {
+        const result = computeOpportunities(teacherPers, baseEmp, baseOther, baseDeductions, baseSpe, null, p)
+        const ids = result.opportunities.map((o) => o.id)
+        expect(ids).toContain('teacher_materials')
+    })
+
+    it('no opportunity for regular employee', () => {
+        const result = computeOpportunities(basePers, baseEmp, baseOther, baseDeductions, baseSpe, null, p)
+        const ids = result.opportunities.map((o) => o.id)
+        expect(ids).not.toContain('teacher_materials')
+    })
+
+    it('suppressed when teacher already claims a sufficient amount', () => {
+        const d = { ...baseDeductions, teacherMaterials: 600 }
+        const result = computeOpportunities(teacherPers, baseEmp, baseOther, d, baseSpe, null, p)
+        const ids = result.opportunities.map((o) => o.id)
+        expect(ids).not.toContain('teacher_materials')
+    })
+})
+
+describe('detectDoubleHousehold', () => {
+    it('detects opportunity for teacher with no double household', () => {
+        const result = computeOpportunities(teacherPers, baseEmp, baseOther, baseDeductions, baseSpe, null, p)
+        const ids = result.opportunities.map((o) => o.id)
+        expect(ids).toContain('double_household')
+    })
+
+    it('no opportunity for regular employee', () => {
+        const result = computeOpportunities(basePers, baseEmp, baseOther, baseDeductions, baseSpe, null, p)
+        const ids = result.opportunities.map((o) => o.id)
+        expect(ids).not.toContain('double_household')
+    })
+
+    it('suppressed when double household months already entered', () => {
+        const d = { ...baseDeductions, doubleHouseholdMonths: 6, doubleHouseholdCostsPerMonth: 800 }
+        const result = computeOpportunities(teacherPers, baseEmp, baseOther, d, baseSpe, null, p)
+        const ids = result.opportunities.map((o) => o.id)
+        expect(ids).not.toContain('double_household')
+    })
+})
+
+describe('detectArbeitszimmer', () => {
+    it('suggests arbeitszimmer to freelancer using daily pauschale', () => {
+        const freelancerPers: PersonalData = { ...basePers, occupationType: 'freelancer' }
+        const d = { ...baseDeductions, homeOfficeDays: 100 }
+        const result = computeOpportunities(freelancerPers, baseEmp, baseOther, d, baseSpe, null, p)
+        const ids = result.opportunities.map((o) => o.id)
+        expect(ids).toContain('arbeitszimmer')
+    })
+
+    it('does NOT suggest arbeitszimmer when already using it', () => {
+        const freelancerPers: PersonalData = { ...basePers, occupationType: 'freelancer' }
+        const d = { ...baseDeductions, homeOfficeDays: 0, homeOfficeType: 'arbeitszimmer' as const }
+        const result = computeOpportunities(freelancerPers, baseEmp, baseOther, d, baseSpe, null, p)
+        const ids = result.opportunities.map((o) => o.id)
+        expect(ids).not.toContain('arbeitszimmer')
+    })
+
+    it('does NOT suggest arbeitszimmer to a regular employee', () => {
+        const d = { ...baseDeductions, homeOfficeDays: 100 }
+        const result = computeOpportunities(basePers, baseEmp, baseOther, d, baseSpe, null, p)
+        const ids = result.opportunities.map((o) => o.id)
+        expect(ids).not.toContain('arbeitszimmer')
+    })
+})

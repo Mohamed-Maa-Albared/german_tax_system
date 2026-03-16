@@ -43,6 +43,7 @@ const defaultPersonal: PersonalData = {
     isFullYearResident: true,
     isDisabled: false,
     disabilityGrade: 0,
+    occupationType: 'employee',
 }
 
 const defaultEmployment: EmploymentData = {
@@ -78,6 +79,16 @@ const defaultDeductions: DeductionsData = {
     workTraining: 0,
     unionFees: 0,
     lossCarryForward: 0,
+    homeOfficeType: 'pauschale',
+    arbeitszimmerMittelpunkt: false,
+    apartmentSqm: 0,
+    officeSqm: 0,
+    monthlyWarmRent: 0,
+    yourRentSharePct: 100,
+    arbeitszimmerStartMonth: 1,
+    teacherMaterials: 0,
+    doubleHouseholdCostsPerMonth: 0,
+    doubleHouseholdMonths: 0,
 }
 
 const defaultSpecialExpenses: SpecialExpensesData = {

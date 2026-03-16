@@ -219,7 +219,7 @@ function DiscrepancyRow({ item }: { item: DiscrepancyItem }) {
                 <div className="flex items-start gap-2 flex-1">
                     <Icon size={16} className={`shrink-0 mt-0.5 ${iconColor}`} />
                     <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-gray-800">{item.label}</p>
+                        <p className="text-sm font-semibold text-gray-800 dark:text-slate-200">{item.label}</p>
                         <div className="flex gap-4 mt-1 text-xs text-gray-600">
                             <span>Our estimate: <strong className="text-gray-800">{formatCurrency(item.ourValue)}</strong></span>
                             <span>Finanzamt: <strong className="text-gray-800">{formatCurrency(item.theirValue)}</strong></span>
@@ -301,9 +301,9 @@ export default function SteuerbescheidReader() {
             <div>
                 <div className="flex items-center gap-2 mb-1">
                     <FileText size={22} className="text-brand-600" />
-                    <h1 className="text-2xl font-bold text-gray-900">Steuerbescheid Reader</h1>
+                    <h1 className="font-heading font-bold text-2xl text-gray-900 dark:text-slate-100">Steuerbescheid Reader</h1>
                 </div>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-gray-500 dark:text-slate-400">
                     Enter the key figures from your Finanzamt tax assessment letter to check for discrepancies
                     and understand your options.
                 </p>
@@ -342,7 +342,7 @@ export default function SteuerbescheidReader() {
             </div>
 
             {/* ── Bescheid date + deadline ── */}
-            <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
+            <div className="bg-white dark:bg-sn-card rounded-2xl border border-gray-100 dark:border-white/5 p-5 shadow-sm dark:shadow-none">
                 <h2 className="text-base font-semibold text-gray-800 mb-4">Step 1 — Assessment Date</h2>
                 <div className="max-w-sm">
                     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -367,7 +367,7 @@ export default function SteuerbescheidReader() {
             </div>
 
             {/* ── Key figures input ── */}
-            <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
+            <div className="bg-white dark:bg-sn-card rounded-2xl border border-gray-100 dark:border-white/5 p-5 shadow-sm dark:shadow-none">
                 <h2 className="text-base font-semibold text-gray-800 mb-4">Step 2 — Key Figures from Your Bescheid</h2>
                 <div className="grid sm:grid-cols-2 gap-4">
                     <DeschedField
@@ -453,14 +453,14 @@ export default function SteuerbescheidReader() {
                         </div>
                     </div>
 
-                    <h2 className="text-base font-semibold text-gray-800">Comparison Detail</h2>
+                    <h2 className="text-base font-semibold text-gray-800 dark:text-slate-200">Comparison Detail</h2>
                     <div className="space-y-3">
                         {discrepancies.map((d, i) => <DiscrepancyRow key={i} item={d} />)}
                     </div>
 
                     {/* Einspruch guide */}
                     {hasIssues && (
-                        <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
+                        <div className="bg-white dark:bg-sn-card rounded-2xl border border-gray-100 dark:border-white/5 p-5 shadow-sm dark:shadow-none">
                             <button
                                 onClick={() => setShowEinspruchGuide((o) => !o)}
                                 className="w-full flex items-center justify-between text-left"

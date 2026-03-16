@@ -396,6 +396,83 @@ function detectDisability(
     }
 }
 
+function detectTeacherMaterials(
+    d: DeductionsData,
+    personal: PersonalData,
+    emp: EmploymentData,
+    rate: number,
+): DeductionOpportunity | null {
+    if (personal.occupationType !== 'teacher_civil_servant') return null
+    if (emp.grossSalary <= 0) return null
+    if ((d.teacherMaterials ?? 0) >= 500) return null  // already claiming a reasonable amount
+
+    return {
+        id: 'teacher_materials',
+        title: 'Teaching Materials (Unterrichtsmaterialien)',
+        lawRef: '§9 Abs.1 Nr.6 EStG',
+        description: 'Books, worksheets, laminating foil, stationery, classroom supplies, and digital tools bought for teaching are 100% deductible as Werbungskosten — with no cap. Teachers typically claim €200–€800/year.',
+        estimatedSavingMin: savingEst(150, rate),
+        estimatedSavingMax: savingEst(800, rate),
+        confidence: (d.teacherMaterials ?? 0) === 0 ? 'needs-input' : 'likely',
+        advisorQuestion: 'How much did you spend on teaching materials this year? Include books, worksheets, laminators, class supplies, and educational software.',
+        applyField: 'teacher_materials',
+        documents: ['Receipts from bookshops, Thalia, Amazon, or stationery suppliers', 'Proof that each item relates to your teaching (subject note is sufficient)'],
+        alreadyClaiming: (d.teacherMaterials ?? 0) > 0,
+        atCap: false,
+    }
+}
+
+function detectDoubleHousehold(
+    d: DeductionsData,
+    personal: PersonalData,
+    rate: number,
+): DeductionOpportunity | null {
+    if (personal.occupationType !== 'teacher_civil_servant') return null
+    if ((d.doubleHouseholdMonths ?? 0) > 0) return null  // already entered
+
+    return {
+        id: 'double_household',
+        title: 'Double Household (Doppelte Haushaltsführung)',
+        lawRef: '§9 Abs.1 Nr.5 EStG',
+        description: 'If you maintain a second home near your school/workplace (e.g. during training, secondment, or relocation), the accommodation costs are deductible up to €1,000/month.',
+        estimatedSavingMin: savingEst(3_000, rate),
+        estimatedSavingMax: savingEst(12_000, rate),
+        confidence: 'needs-input',
+        advisorQuestion: 'Do you (or did you during this tax year) rent a second flat or room near your school or posting location, while keeping your main home elsewhere?',
+        applyField: 'double_household_months',
+        documents: ['Rental contract for the second home', 'Bank statements showing the rent payments', 'Meldebescheinigung showing two registered addresses'],
+        alreadyClaiming: false,
+        atCap: false,
+    }
+}
+
+function detectArbeitszimmer(
+    d: DeductionsData,
+    personal: PersonalData,
+    rate: number,
+): DeductionOpportunity | null {
+    // Only suggest to freelancers or civil servants — not regular employees or undefined
+    if (d.homeOfficeType === 'arbeitszimmer') return null
+    if (!personal.occupationType || personal.occupationType === 'employee') return null
+    if ((d.homeOfficeDays ?? 0) === 0) return null  // not even using home office
+
+    // Freelancers and civil servants are more likely to have a Mittelpunkt home office
+    return {
+        id: 'arbeitszimmer',
+        title: 'Dedicated Home Office Room (Häusliches Arbeitszimmer)',
+        lawRef: '§9 Abs.5 / §4 Abs.5 Nr.6b EStG',
+        description: 'If your home is the Mittelpunkt (centre) of all your professional activity and you have a dedicated, enclosed office room, you may deduct the full proportional rent instead of the €6/day flat rate.',
+        estimatedSavingMin: savingEst(1_260, rate),
+        estimatedSavingMax: savingEst(4_000, rate),
+        confidence: 'needs-input',
+        advisorQuestion: 'Do you have a separate enclosed room used almost exclusively for work? Is your home the primary place where your core professional tasks happen (not just occasional remote work)?',
+        applyField: 'home_office_type',
+        documents: ['Rental contract showing total Wohnfläche', 'Floor plan (Grundriss) identifying the office room', 'Bank statements showing rent payments'],
+        alreadyClaiming: false,
+        atCap: false,
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Deduction score calculation
 // ---------------------------------------------------------------------------
@@ -446,6 +523,9 @@ export function computeOpportunities(
         detectChildcare(specialExpenses, params, personal.numChildren, rate),
         detectMedicalCosts(specialExpenses, grossIncome, personal.isMarried, personal.numChildren, rate),
         detectDisability(personal, rate),
+        detectTeacherMaterials(deductions, personal, employment, rate),
+        detectDoubleHousehold(deductions, personal, rate),
+        detectArbeitszimmer(deductions, personal, rate),
     ]
 
     const opportunities = raw.filter((o): o is DeductionOpportunity => o !== null)

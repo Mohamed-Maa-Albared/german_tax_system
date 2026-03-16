@@ -59,14 +59,14 @@ describe('TaxBreakdown component', () => {
 
     it('renders suggestions section', () => {
         render(<TaxBreakdown breakdown={mockBreakdown} />)
-        expect(screen.getByText('💡 Tax Saving Tips')).toBeDefined()
+        expect(screen.getByText('// Tax Saving Tips')).toBeDefined()
         expect(screen.getByText('• Consider increasing pension contributions')).toBeDefined()
     })
 
     it('does not render suggestions when empty', () => {
         const noSuggestions = { ...mockBreakdown, suggestions: [] }
         render(<TaxBreakdown breakdown={noSuggestions} />)
-        expect(screen.queryByText('💡 Tax Saving Tips')).toBeNull()
+        expect(screen.queryByText('// Tax Saving Tips')).toBeNull()
     })
 
     it('shows kirchensteuer row when > 0', () => {
